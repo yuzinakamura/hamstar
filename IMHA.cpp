@@ -6,28 +6,32 @@
 #include <cassert>
 #include <vector>
 #include <map>
+#include <algorithm>
 //#include <unordered_map>
 #include <cstdio>
 //#include <chrono>
 using namespace std;
 
 typedef double Cost;
-typedef vector<vector<int> > State;
+typedef pair<vector<int>,vector<int> > State;
 typedef chrono::high_resolution_clock Clock;
 
-array<int,4> dx = {1,0,-1,0};
-array<int,4> dy = {0,1,0,-1};
 constexpr int MASK_CLOSED = 1;
-constexpr int GRID_ROWS = 3;
-constexpr int GRID_COLS = 3;
+constexpr int GRID_ROWS = 4;
+constexpr int GRID_COLS = 4;
 constexpr int NUM_THREADS = 4;
-constexpr Cost INFINITE = 1000000000;
+constexpr Cost INFINITE = 100000000;
 condition_variable main_cv;
+array<int,4> moves = {1,-GRID_COLS,-1,GRID_COLS};
 
 void printState(const State& s) {
-  printf("%d %d %d\n%d %d %d\n%d %d %d\n\n",s[0][0],s[0][1],s[0][2],
-                                            s[1][0],s[1][1],s[1][2],
-                                            s[2][0],s[2][1],s[2][2]);
+  for (int i = 0; i < GRID_ROWS; ++i)
+  {
+    for (int j = 0; j < GRID_COLS; ++j)
+      printf("%3d", s.first[i*GRID_COLS + j]);
+    printf("\n");
+  }
+  printf("\n");
 }
 
 class StateData {
@@ -47,20 +51,18 @@ class StateData {
 vector<State> getSuccessors(const State& s)
 {
   vector<State> successors;
-  int zeroR, zeroC;
-  for (int i = 0; i < GRID_ROWS; ++i)
-    for (int j = 0; j < GRID_COLS; ++j)
-      if (s[i][j] == 0)
-        zeroR = i, zeroC = j;
-  for (int d = 0; d < 4; ++d)
+  int zeroPos = s.second[0];
+  for (int i = 0; i < 4; ++i)
   {
-    int r = zeroR + dx[d];
-    int c = zeroC + dy[d];
-    if (0 <= r && r < GRID_ROWS && 0 <= c && c < GRID_COLS)
+    int pos = zeroPos + moves[i];
+    int val = s.first[pos];
+    if (0 <= pos && pos < GRID_ROWS*GRID_COLS)
     {
       State succ = s;
-      succ[zeroR][zeroC] = succ[r][c];
-      succ[r][c] = 0;
+      succ.first[zeroPos] = val;
+      succ.first[pos] = 0;
+      succ.second[0] = pos;
+      succ.second[val] = zeroPos;
       successors.push_back(succ);
     }
   }
@@ -74,13 +76,21 @@ class Problem {
     double w1, w2;
     vector<multimap<Cost,State> > open;
     vector<map<State,StateData> > data;
+    Cost OPEN0_MIN;
     int num_discovered;
     int num_expanded;
-    bool search_done;
-
+    int search_done;
     
     inline Cost pairwiseH(int id, const State& s1, const State& s2) {
-      return 0;
+      Cost h = 0;
+      for (int val = 1; val < GRID_ROWS*GRID_COLS; ++val) {
+        int r1 = s1.second[val] / GRID_COLS;
+        int c1 = s1.second[val] % GRID_COLS;
+        int r2 = s2.second[val] / GRID_COLS;
+        int c2 = s2.second[val] % GRID_COLS;
+        h += abs(r1-r2) + abs(c1-c2);
+      }
+      return h;
     }
 
     inline Cost goalH(int id, const State& s) {
@@ -105,11 +115,13 @@ class Problem {
         start_data.g = 0;
         start_data.h = goalH(id, start);
         start_data.iter = open[id].cend();
+        start_data.bp = start;
         insert(id, start, start_data);
       }
+      OPEN0_MIN = f(0, data[0][start]);
       num_discovered = 1;
       num_expanded = 0;
-      search_done = false;
+      search_done = -1;
     }
 
     void expand(int id, const State& s) {
@@ -127,8 +139,8 @@ class Problem {
 
         //critical section for updating g-value and inserting
         if(t_data.g > s_data.g + 1){
-          t_data.g = s_data.g + 1;
           t_data.bp = s;
+          t_data.g = s_data.g + 1;
           if (!(t_data.mask & MASK_CLOSED))
             insert(id, t, t_data);
         }
@@ -136,32 +148,39 @@ class Problem {
     }
 
     void astar_thread(int id) {
-      while(!search_done) {
+      while (search_done == -1) {
         //get a State to expand
         auto it = open[id].cbegin();
         if (it == open[id].cend()) {
-          // search failed
-          search_done = true;
+          // search failed... or did it? maybe OPEN0_MIN will
+          // rise enough for existing solution to become valid
           break;
         }
         State s = it->second;
         open[id].erase(it);
 
-        if (s == goal) {
-          search_done = true;
-          //send a message to all processes
+        //printState(s);
+        num_expanded++;
+        expand(id, s);
+
+        if (id == 0) {
+          if (open[0].empty())
+            OPEN0_MIN = INFINITE;
+          else
+            OPEN0_MIN = min(OPEN0_MIN, open[0].cbegin()->first);
+        }
+        if (data[id][goal].g <= w2 * OPEN0_MIN) {
+          if (data[id][goal].g < INFINITE)
+            search_done = id;
           main_cv.notify_one();
           break;
         }
-
-        num_expanded++;
-        expand(id, s);
       }
     }
 
     void solveMaze() {
-      mutex cv_mutex;
-      unique_lock<mutex> cv_lock(cv_mutex);
+      //mutex cv_mutex;
+      //unique_lock<mutex> cv_lock(cv_mutex);
       vector<thread> threads(NUM_THREADS);
       for(int id = 0; id < NUM_THREADS; ++id) {
         threads[id] = thread([=]{ astar_thread(id); });
@@ -177,6 +196,18 @@ class Problem {
       //  printf("Queue is empty....failed to find goal!\n");
       //}
     }
+
+    vector<State> getSolution() {
+      vector<State> sol;
+      State s = goal;
+      sol.push_back(s);
+      while (s != start) {
+        s = data[search_done][s].bp;
+        sol.push_back(s);
+      }
+      reverse(sol.begin(), sol.end());
+      return sol;
+    }
 };
 
 int main(int argc, char** argv) {
@@ -187,27 +218,50 @@ int main(int argc, char** argv) {
       //load map
 
       Problem problem;
-      problem.w1 = 2;
-      problem.w2 = 2;
-      problem.start = {{8,7,6},{5,4,3},{2,1,0}};
-      problem.goal = {{0,1,2},{3,4,5},{6,7,8}};
+      problem.w1 = 1.4;
+      problem.w2 = 1.4;
+      problem.goal.first = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0};
+      problem.goal.second = {15,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14};
+      // make a random start state
+      problem.start = problem.goal;
+      random_device rd;
+      mt19937 gen(rd());
+      bool parity = false;
+      for (int i = 0; i < GRID_ROWS*GRID_COLS-2; ++i)
+      {
+        uniform_int_distribution<> dis(i, GRID_ROWS*GRID_COLS-2);
+        int swap_cell = dis(gen);
+        if (swap_cell != i) {
+          parity = !parity;
+        }
+        swap(problem.start.first[i], problem.start.first[swap_cell]);
+        swap(problem.start.second[problem.start.first[i]],
+             problem.start.second[problem.start.first[swap_cell]]);
+      }
+      // fix the parity to ensure a solution exists
+      if (parity) {
+        swap(problem.start.first[0], problem.start.first[1]);
+        swap(problem.start.second[problem.start.first[0]],
+             problem.start.second[problem.start.first[1]]);
+      }
 
       //run planner
       Clock::time_point t0 = Clock::now();
       problem.init();
       problem.solveMaze();
       Clock::time_point t1 = Clock::now();
-      Cost path_length = problem.data[0][problem.goal].g;
 
-      //get path computed by thread #0 in reverse order
-      while (problem.goal != problem.start) {
-        problem.goal = problem.data[0][problem.goal].bp;
-        printState(problem.goal);
+      Cost path_length = INFINITE;
+      if (problem.search_done != -1) {
+        path_length = problem.data[problem.search_done][problem.goal].g;
+        for (State& s : problem.getSolution()) {
+          printState(s);
+        }
       }
 
       //report stats
       double dt =  chrono::duration<double, chrono::seconds::period>(t1-t0).count();
-      printf("map %d, goal %d: Path Length=%f Visited Nodes=%d Explored Nodes=%d Planning Time=%f\n",i-1,j,path_length,problem.num_discovered,problem.num_expanded,dt);
+      printf("map %d, goal %d: Path Length=%f Visited Nodes=%d Explored Nodes=%d Planning Time=%f\n",i,j,path_length,problem.num_discovered,problem.num_expanded,dt);
       fprintf(fout,"%d %f %f %f %d %f\n",NUM_THREADS,problem.w1,problem.w2,dt,problem.num_expanded,path_length);
     }
   }
