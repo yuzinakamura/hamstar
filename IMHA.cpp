@@ -83,14 +83,19 @@ vector<State> getSuccessors(const State& s)
 
 class Problem {
   public:
-    State start;
-    State goal;
+    // search parameters: endpoints and weights
+    State start, goal;
     double w1, w2;
+    // the priority queue or search frontier
     vector<multimap<Cost,State> > open;
+    // a dictionary of seen states and their corresponding data
     vector<map<State,StateData> > data;
+    // a value that bounds the optimal solution cost
     Cost OPEN0_MIN;
+    // number of states seen and expanded
     int num_discovered;
     int num_expanded;
+    // id of the thread which completed the search, or -1 if the search is ongoing
     int search_done;
     
     inline Cost manhattan(const State& s1, const State& s2) {
