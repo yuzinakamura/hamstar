@@ -67,9 +67,11 @@ vector<State> getSuccessors(const State& s)
   {
     // neighbor of the gap
     int pos = gapPos + moves[i];
-    if (0 <= pos && pos < GRID_ROWS*GRID_COLS)
+    int pr = gapPos/GRID_COLS + moves[i]/GRID_COLS;
+    int pc = pos - pr*GRID_COLS;
+    if (0 <= pr && pr < GRID_ROWS && 0 <= pc && pc < GRID_COLS)
     {
-		int val = s.first[pos];
+      int val = s.first[pos];
       // slide the neighbor tile into the gap
       State succ = s;
       succ.first[gapPos] = val;
@@ -99,7 +101,7 @@ class Problem {
     // id of the thread which completed the search, or -1 if the search is ongoing
     int search_done;
     
-    inline Cost manhattan(const State& s1, const State& s2) {
+    inline Cost manhattanDist(const State& s1, const State& s2) {
       Cost h = 0;
       for (int val = 1; val < GRID_ROWS*GRID_COLS; ++val) {
         // compute distance between val's position in s1 and s2
@@ -112,9 +114,33 @@ class Problem {
       return h;
     }
 
+    Cost misplacedTiles(const State& s1, const State& s2) {
+      Cost h = 0;
+      for (int val = 1; val < GRID_ROWS*GRID_COLS; ++val) {
+        // check if val is in the same position in s1 and s2
+        if (s1.second[val] != s2.second[val])
+          ++h;
+      }
+      return h;
+    }
+
+    Cost linearConflicts(const State& s1, const State& s2) {
+      Cost h = 0;
+      for (int r = 0; r < GRID_ROWS; ++r) {
+        vector<int> conflicts(GRID_COLS);
+        for (int c1 = 0; c1 < GRID_COLS; ++c1)
+        for (int c2 = 0; c2 < c1; ++c2)
+        if (s1.first[r*GRID_COLS + c1] < s2.first[r*GRID_COLS + c2]) {
+          ++conflicts[c1];
+          ++conflicts[c2];
+        }
+      }
+      return h;
+    }
+
     // this function determines the heuristics to be used
     inline Cost pairwiseH(int id, const State& s1, const State& s2) {
-      return manhattan(s1, s2);
+      return manhattanDist(s1, s2) + linearConflicts(s1, s2);
     }
 
     inline Cost goalH(int id, const State& s) {
@@ -196,7 +222,7 @@ class Problem {
           if (open[0].empty())
             OPEN0_MIN = INFINITE;
           else
-            OPEN0_MIN = min(OPEN0_MIN, open[0].cbegin()->first);
+            OPEN0_MIN = max(OPEN0_MIN, open[0].cbegin()->first);
         }
         // search termination condition
         if (data[id][goal].g <= w2 * OPEN0_MIN) {
