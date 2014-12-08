@@ -126,13 +126,54 @@ class Problem {
 
     Cost linearConflicts(const State& s1, const State& s2) {
       Cost h = 0;
+      // same-row conflicts
       for (int r = 0; r < GRID_ROWS; ++r) {
-        vector<int> conflicts(GRID_COLS);
+        vector<int> conflicts(GRID_COLS, 0);
         for (int c1 = 0; c1 < GRID_COLS; ++c1)
-        for (int c2 = 0; c2 < c1; ++c2)
-        if (s1.first[r*GRID_COLS + c1] < s2.first[r*GRID_COLS + c2]) {
-          ++conflicts[c1];
-          ++conflicts[c2];
+        for (int c2 = 0; c2 < c1; ++c2) {
+          int val1 = s1.first[r*GRID_COLS + c1];
+          int val2 = s2.first[r*GRID_COLS + c2];
+          if (s1.second[val1]/GRID_COLS == s2.second[val2]/GRID_COLS) {
+            conflicts[c1] |= 1<<c2;
+            conflicts[c2] |= 1<<c1;
+          }
+        }
+        while (true) {
+          int c1 = 0;
+          for (int c = 1; c < GRID_COLS; ++c)
+          if (__builtin_popcount(conflicts[c1]) < __builtin_popcount(conflicts[c]))
+            c1 = c;
+          if (conflicts[c1] <= 0)
+            break;
+          conflicts[c1] = 0;
+          for (int c2 = 0; c2 < GRID_COLS; ++c2)
+            conflicts[c2] &= ~(1<<c1);
+          h += 2;
+        }
+      }
+      // same-column conflicts
+      for (int c = 0; c < GRID_COLS; ++c) {
+        vector<int> conflicts(GRID_ROWS, 0);
+        for (int r1 = 0; r1 < GRID_ROWS; ++r1)
+        for (int r2 = 0; r2 < r1; ++r2) {
+          int val1 = s1.first[r1*GRID_COLS + c];
+          int val2 = s2.first[r2*GRID_COLS + c];
+          if (s1.second[val1]%GRID_COLS == s2.second[val2]%GRID_COLS) {
+            conflicts[r1] |= 1<<r2;
+            conflicts[r2] |= 1<<r1;
+          }
+        }
+        while (true) {
+          int r1 = 0;
+          for (int r = 1; r < GRID_ROWS; ++r)
+          if (__builtin_popcount(conflicts[r1]) < __builtin_popcount(conflicts[r]))
+            r1 = r;
+          if (conflicts[r1] <= 0)
+            break;
+          conflicts[r1] = 0;
+          for (int r2 = 0; r2 < GRID_ROWS; ++r2)
+            conflicts[r2] &= ~(1<<r1);
+          h += 2;
         }
       }
       return h;

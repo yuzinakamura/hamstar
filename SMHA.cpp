@@ -75,6 +75,61 @@ Cost misplacedTiles(const State& s1, const State& s2) {
   return h;
 }
 
+Cost linearConflicts(const State& s1, const State& s2) {
+  Cost h = 0;
+  // same-row conflicts
+  for (int r = 0; r < GRID_ROWS; ++r) {
+    vector<int> conflicts(GRID_COLS, 0);
+    for (int c1 = 0; c1 < GRID_COLS; ++c1)
+    for (int c2 = 0; c2 < c1; ++c2) {
+      int val1 = s1.first[r*GRID_COLS + c1];
+      int val2 = s2.first[r*GRID_COLS + c2];
+      if (s1.second[val1]/GRID_COLS == s2.second[val2]/GRID_COLS) {
+        conflicts[c1] |= 1<<c2;
+        conflicts[c2] |= 1<<c1;
+      }
+    }
+    while (true) {
+      int c1 = 0;
+      for (int c = 1; c < GRID_COLS; ++c)
+      if (__builtin_popcount(conflicts[c1]) < __builtin_popcount(conflicts[c]))
+        c1 = c;
+      if (conflicts[c1] <= 0)
+        break;
+      conflicts[c1] = 0;
+      for (int c2 = 0; c2 < GRID_COLS; ++c2)
+        conflicts[c2] &= ~(1<<c1);
+      h += 2;
+    }
+  }
+  // same-column conflicts
+  for (int c = 0; c < GRID_COLS; ++c) {
+    vector<int> conflicts(GRID_ROWS, 0);
+    for (int r1 = 0; r1 < GRID_ROWS; ++r1)
+    for (int r2 = 0; r2 < r1; ++r2) {
+      int val1 = s1.first[r1*GRID_COLS + c];
+      int val2 = s2.first[r2*GRID_COLS + c];
+      if (s1.second[val1]%GRID_COLS == s2.second[val2]%GRID_COLS) {
+        conflicts[r1] |= 1<<r2;
+        conflicts[r2] |= 1<<r1;
+      }
+    }
+    while (true) {
+      int r1 = 0;
+      for (int r = 1; r < GRID_ROWS; ++r)
+      if (__builtin_popcount(conflicts[r1]) < __builtin_popcount(conflicts[r]))
+        r1 = r;
+      if (conflicts[r1] <= 0)
+        break;
+      conflicts[r1] = 0;
+      for (int r2 = 0; r2 < GRID_ROWS; ++r2)
+        conflicts[r2] &= ~(1<<r1);
+      h += 2;
+    }
+  }
+  return h;
+}
+
 // data associated with one state
 class StateData {
   public:
@@ -121,6 +176,8 @@ class Searcher {
     // search parameters: endpoints and weights
     State start, goal;
     double w1, w2;
+    // multi-heuristic mixing coefficients
+    double MD, LC, MT;
     // the priority queue or search frontier
     multimap<Cost,State> open;
     // a dictionary of seen states and their corresponding data
@@ -130,8 +187,6 @@ class Searcher {
     // number of states seen and expanded
     int num_discovered;
     int num_expanded;
-    // id of the thread which completed the search, or -1 if the search is ongoing
-    int search_done;
     // id of the Searcher
     int id;
     // simulate network communication with message queue and corresponding mutexes
@@ -145,7 +200,7 @@ class Searcher {
 
     // this function determines the heuristics to be used
     Cost pairwiseH(const State& s1, const State& s2) {
-      return manhattanDist(s1, s2);
+      return MD*manhattanDist(s1,s2) + LC*linearConflicts(s1,c2) + MT*misplacedTiles(s1,s2);
     }
 
     Cost goalH(const State& s) {
@@ -165,6 +220,14 @@ class Searcher {
 
     // assumes start, goal, w1 and w2 are already set
     void init() {
+      if (comm_rank == HEAD_NODE)
+        MD = LC = 1, MT = 0;
+      else {
+        MD = 1;
+        LC = 1;
+        MT = 1;
+      }
+
       open.clear();
       data.clear();
       
@@ -184,7 +247,6 @@ class Searcher {
       // the start state is discovered but not yet expanded
       num_discovered = 1;
       num_expanded = 0;
-      search_done = -1;
     }
 
     void expand(const State& s, StateData& s_data) {
@@ -218,7 +280,7 @@ class Searcher {
     MPI_Request request;
 
     cout << "Starting run" << endl;
-      while (search_done == -1) {
+      while (true) {
       if (comm_rank != HEAD_NODE) {
         if (updated_states.size() >= TOHEAD_BUFFER_SIZE) {
           assert(updated_states.size() == TOHEAD_BUFFER_SIZE);
@@ -507,9 +569,8 @@ int main(int argc, char** argv) {
     Clock::time_point t1 = Clock::now();
 
     // print solution if it was found
-    Cost path_length = INFINITE;
-    if (searcher.search_done != -1) {
-      path_length = searcher.data[searcher.goal].g;
+    Cost path_length = searcher.data[searcher.goal].g;
+    if (path_length < INFINITE) {
       for (State& s : searcher.getSolution()) {
         printState(s);
       }
