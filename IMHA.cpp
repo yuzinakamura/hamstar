@@ -7,6 +7,7 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <random>
 //#include <unordered_map>
 #include <cstdio>
 //#include <chrono>
@@ -19,14 +20,14 @@ typedef chrono::high_resolution_clock Clock;
 typedef pair<vector<int>,vector<int> > State;
 
 // compile-time constants
-constexpr int MASK_CLOSED = 1;
-constexpr int GRID_ROWS = 4;
-constexpr int GRID_COLS = 4;
-constexpr int NUM_THREADS = 4;
-constexpr int NUM_MOVES = 4;
-constexpr Cost INFINITE = 1e99;
+const int MASK_CLOSED = 1;
+const int GRID_ROWS = 3;
+const int GRID_COLS = 3;
+const int NUM_THREADS = 1;
+const int NUM_MOVES = 4;
+const Cost INFINITE = 1e30;
 // right, up, left, down
-constexpr array<int,NUM_MOVES> moves = {1,-GRID_COLS,-1,GRID_COLS};
+const array<int, NUM_MOVES> moves = { 1, -GRID_COLS, -1, GRID_COLS };
 
 // condition variable for ending the search
 condition_variable main_cv;
@@ -66,9 +67,9 @@ vector<State> getSuccessors(const State& s)
   {
     // neighbor of the gap
     int pos = gapPos + moves[i];
-    int val = s.first[pos];
     if (0 <= pos && pos < GRID_ROWS*GRID_COLS)
     {
+		int val = s.first[pos];
       // slide the neighbor tile into the gap
       State succ = s;
       succ.first[gapPos] = val;
@@ -209,23 +210,7 @@ class Problem {
 
     // assumes init() was called
     void solveMaze() {
-      mutex cv_mutex;
-      unique_lock<mutex> cv_lock(cv_mutex);
-      vector<thread> threads(NUM_THREADS);
-      // create multiple search threads and run them in parallel
-      for(int id = 0; id < NUM_THREADS; ++id) {
-        threads[id] = thread([=]{ astar_thread(id); });
-      }
-      //printf("main thread go to sleep\n");
-      main_cv.wait(cv_lock, [=]{ return search_done; });
-      //printf("main thread awake\n");
-      for(thread& th : threads) {
-        th.join();
-      }
-    
-      //if(goal->g >= INFINITE || !(goal->mask & MASK_CLOSED)) {
-      //  printf("Queue is empty....failed to find goal!\n");
-      //}
+		astar_thread(0);
     }
 
     // get the path: a sequence of states from start to goal
@@ -243,19 +228,25 @@ class Problem {
 };
 
 int main(int argc, char** argv) {
-  FILE* fout = fopen("stats.csv","w");
   // we can set it up to loop over multiple problem instances
   for(int i=0; i<1/*argc*/; i++) {
     // prepare a problem instance
     Problem problem;
-    problem.w1 = 1.4;
-    problem.w2 = 1.4;
-    problem.goal.first = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0};
-    problem.goal.second = {15,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14};
+    problem.w1 = 1.0;
+    problem.w2 = 1.0;
+	for (int i = 1; i < GRID_ROWS*GRID_COLS; i++) {
+		problem.goal.first.push_back(i);
+	}
+	problem.goal.first.push_back(0);
+	problem.goal.second.push_back(GRID_ROWS*GRID_COLS-1);
+	for (int i = 0; i < GRID_ROWS*GRID_COLS - 1; i++) {
+		problem.goal.second.push_back(i);
+	}
+    //problem.goal.first = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0};
+    //problem.goal.second = {15,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14};
     // make a random start state
     problem.start = problem.goal;
-    random_device rd;
-    mt19937 gen(rd());
+    mt19937 gen(1);
     bool parity = false;
     for (int i = 0; i < GRID_ROWS*GRID_COLS-2; ++i)
     {
@@ -293,7 +284,5 @@ int main(int argc, char** argv) {
     // report stats
     double dt = chrono::duration<double, chrono::seconds::period>(t1-t0).count();
     printf("map %d: Path Length=%f Visited Nodes=%d Explored Nodes=%d Planning Time=%f\n",i,path_length,problem.num_discovered,problem.num_expanded,dt);
-    fprintf(fout,"%d %f %f %f %d %f\n",NUM_THREADS,problem.w1,problem.w2,dt,problem.num_expanded,path_length);
   }
-  fclose(fout);
 }
