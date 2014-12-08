@@ -84,7 +84,8 @@ Cost linearConflicts(const State& s1, const State& s2) {
     for (int c2 = 0; c2 < c1; ++c2) {
       int val1 = s1.first[r*GRID_COLS + c1];
       int val2 = s2.first[r*GRID_COLS + c2];
-      if (s1.second[val1]/GRID_COLS == s2.second[val2]/GRID_COLS) {
+      if (s1.second[val1]/GRID_COLS == s2.second[val2]/GRID_COLS &&
+          s1.second[val1]%GRID_COLS <  s2.second[val2]%GRID_COLS) {
         conflicts[c1] |= 1<<c2;
         conflicts[c2] |= 1<<c1;
       }
@@ -109,7 +110,8 @@ Cost linearConflicts(const State& s1, const State& s2) {
     for (int r2 = 0; r2 < r1; ++r2) {
       int val1 = s1.first[r1*GRID_COLS + c];
       int val2 = s2.first[r2*GRID_COLS + c];
-      if (s1.second[val1]%GRID_COLS == s2.second[val2]%GRID_COLS) {
+      if (s1.second[val1]%GRID_COLS == s2.second[val2]%GRID_COLS &&
+          s1.second[val1]/GRID_COLS <  s2.second[val2]/GRID_COLS) {
         conflicts[r1] |= 1<<r2;
         conflicts[r2] |= 1<<r1;
       }
@@ -127,6 +129,7 @@ Cost linearConflicts(const State& s1, const State& s2) {
       h += 2;
     }
   }
+  printf("LC = %d", h);
   return h;
 }
 

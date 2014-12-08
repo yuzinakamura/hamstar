@@ -133,7 +133,8 @@ class Problem {
         for (int c2 = 0; c2 < c1; ++c2) {
           int val1 = s1.first[r*GRID_COLS + c1];
           int val2 = s2.first[r*GRID_COLS + c2];
-          if (s1.second[val1]/GRID_COLS == s2.second[val2]/GRID_COLS) {
+          if (s1.second[val1]/GRID_COLS == s2.second[val2]/GRID_COLS &&
+              s1.second[val1]%GRID_COLS <  s2.second[val2]%GRID_COLS) {
             conflicts[c1] |= 1<<c2;
             conflicts[c2] |= 1<<c1;
           }
@@ -158,7 +159,8 @@ class Problem {
         for (int r2 = 0; r2 < r1; ++r2) {
           int val1 = s1.first[r1*GRID_COLS + c];
           int val2 = s2.first[r2*GRID_COLS + c];
-          if (s1.second[val1]%GRID_COLS == s2.second[val2]%GRID_COLS) {
+          if (s1.second[val1]%GRID_COLS == s2.second[val2]%GRID_COLS &&
+              s1.second[val1]/GRID_COLS <  s2.second[val2]/GRID_COLS) {
             conflicts[r1] |= 1<<r2;
             conflicts[r2] |= 1<<r1;
           }
@@ -176,6 +178,7 @@ class Problem {
           h += 2;
         }
       }
+      printf("LC=%f ", h);
       return h;
     }
 
@@ -313,7 +316,8 @@ int main(int argc, char** argv) {
     //problem.goal.second = {15,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14};
     // make a random start state
     problem.start = problem.goal;
-    mt19937 gen(1);
+    //random_device rd;
+    mt19937 gen(2);
     bool parity = false;
     for (int i = 0; i < GRID_ROWS*GRID_COLS-2; ++i)
     {
