@@ -28,8 +28,8 @@ constexpr int MASK_CLOSED = 1;
 constexpr int MASK_CLOSED_ANCHOR = 2;
 constexpr int GRID_ROWS = 4;
 constexpr int GRID_COLS = 4;
-constexpr int NUM_THREADS = 1;
 constexpr int NUM_MOVES = 4;
+constexpr double TIME_LIMIT = 60;
 constexpr Cost INFINITE = 1e30;
 
 //communication constants
@@ -71,8 +71,9 @@ Cost misplacedTiles(const State& s1, const State& s2) {
   Cost h = 0;
   for (int val = 1; val < GRID_ROWS*GRID_COLS; ++val) {
     // check if val is in the same position in s1 and s2
-    if (s1.second[val] != s2.second[val])
+    if (s1.second[val] != s2.second[val]) {
       ++h;
+    }
   }
   return h;
 }
@@ -84,13 +85,13 @@ Cost linearConflicts(const State& s1, const State& s2) {
     vector<int> conflicts(GRID_COLS, 0);
     for (int c1 = 0; c1 < GRID_COLS; ++c1)
       for (int c2 = 0; c2 < c1; ++c2) {
-      int val1 = s1.first[r*GRID_COLS + c1];
-      int val2 = s2.first[r*GRID_COLS + c2];
-      if (s2.second[val1] / GRID_COLS == s2.second[val2] / GRID_COLS &&
-        s2.second[val1] < s2.second[val2]) {
-        conflicts[c1] |= 1 << c2;
-        conflicts[c2] |= 1 << c1;
-      }
+        int val1 = s1.first[r*GRID_COLS + c1];
+        int val2 = s2.first[r*GRID_COLS + c2];
+        if (s2.second[val1] / GRID_COLS == s2.second[val2] / GRID_COLS &&
+          s2.second[val1] < s2.second[val2]) {
+          conflicts[c1] |= 1 << c2;
+          conflicts[c2] |= 1 << c1;
+        }
       }
     while (true) {
       int c1 = 0;
@@ -110,13 +111,13 @@ Cost linearConflicts(const State& s1, const State& s2) {
     vector<int> conflicts(GRID_ROWS, 0);
     for (int r1 = 0; r1 < GRID_ROWS; ++r1)
       for (int r2 = 0; r2 < r1; ++r2) {
-      int val1 = s1.first[r1*GRID_COLS + c];
-      int val2 = s2.first[r2*GRID_COLS + c];
-      if (s2.second[val1] % GRID_COLS == s2.second[val2] % GRID_COLS &&
-        s2.second[val1] < s2.second[val2]) {
-        conflicts[r1] |= 1 << r2;
-        conflicts[r2] |= 1 << r1;
-      }
+        int val1 = s1.first[r1*GRID_COLS + c];
+        int val2 = s2.first[r2*GRID_COLS + c];
+        if (s2.second[val1] % GRID_COLS == s2.second[val2] % GRID_COLS &&
+          s2.second[val1] < s2.second[val2]) {
+          conflicts[r1] |= 1 << r2;
+          conflicts[r2] |= 1 << r1;
+        }
       }
     while (true) {
       int r1 = 0;
@@ -194,6 +195,9 @@ public:
   double MD, LC, MT;
   // Searcher-specific closing mask
   int closing_mask;
+  // time when the search began
+  Clock::time_point start_time;
+  double time_elapsed;
   // the priority queue or search frontier
   multimap<Cost, State> open;
   // a dictionary of seen states and their corresponding data
@@ -272,6 +276,7 @@ public:
     // the start state is discovered but not yet expanded
     num_discovered = 1;
     num_expanded = 0;
+    start_time = Clock::now();
   }
 
   void expand(const State& s, StateData& s_data) {
@@ -421,10 +426,10 @@ public:
         }
         else {
           memset(child_buffer, 0, sizeof(int)*(BUFFER_SIZE*DATUM_SIZE + 2)*comm_size);
-          child_buffer[0] = updated_states.size();
+          int index = 0;
+          child_buffer[index++] = updated_states.size();
           //cout << "States updated: " << child_buffer[0] << endl;
           auto it = updated_states.cbegin();
-          int index = 1;
           for (; it != updated_states.cend(); it++) {
             const State& s = *it;
             StateData& s_data = data[s];
@@ -440,10 +445,10 @@ public:
         //cout << "Process " << comm_rank << " Beginning bcast" << endl;
         memset(child_buffer, 0, sizeof(int)*(BUFFER_SIZE*DATUM_SIZE + 2)*comm_size);
         if (comm_rank == HEAD_NODE) {
-          memcpy(&child_buffer[0], &opt_bound, sizeof(Cost));
-          child_buffer[1] = updated_states.size();
+          int index = 0;
+          memcpy(&child_buffer[index++], &opt_bound, sizeof(Cost));
+          child_buffer[index++] = updated_states.size();
           auto it = updated_states.cbegin();
-          int index = 2;
           for (; it != updated_states.cend(); it++) {
             const State& s = *it;
             StateData& s_data = data[s];
@@ -471,10 +476,12 @@ public:
       // get a State to expand
       auto it = open.cbegin();
 
+      // timing
+      Clock::time_point cur_time = Clock::now();
+      time_elapsed = chrono::duration<double,chrono::seconds::period>(searcher.finish_time-searcher.start_time).count();
       // search termination condition
-      if (it == open.cend() || data[goal].g <= w2 * opt_bound) {
-        // flush and kill
-        // but don't kill the master!!!!!
+      if (it == open.cend() || data[goal].g <= w2 * opt_bound || time_elapsed > TIME_LIMIT) {
+        // flush and kill, but don't kill the master!!!!!
         break;
       }
       State s = it->second;
@@ -494,7 +501,7 @@ public:
     sol.push_back(s);
     while (s != start) {
       s.first = data[s].bp;
-      completeHalfState(s)
+      completeHalfState(s);
       sol.push_back(s);
     }
     reverse(sol.begin(), sol.end());
@@ -533,8 +540,6 @@ void prepareDistributedSearch() {
     swap(searcher.start.second[searcher.start.first[0]],
       searcher.start.second[searcher.start.first[1]]);
   }
-
-  searcher.init();
 }
 
 int main(int argc, char** argv) {
@@ -553,40 +558,36 @@ int main(int argc, char** argv) {
     " out of %d processors\n",
     processor_name, comm_rank, comm_size);
 
-  if (argc > 1) {
-    for (int i = 1; i < argc; i++) {
-      std::string arg = argv[i];
-      if (arg == "-seed") {
-        SEED = atoi(argv[++i]);
-      }
+  for (int i = 1; i < argc; i++) {
+    string arg = argv[i];
+    if (arg == "-seed" || arg == "-s") {
+      SEED = atoi(argv[++i]);
     }
   }
 
   FILE* fout = fopen("stats.csv", "w");
   // we can set it up to loop over multiple problem instances
-  for (int i = 0; i<1/*argc*/; i++) {
+  for (int i = 0; i < 1/*TRIALS*/; i++) {
     // prepare the Searcher processes
     prepareDistributedSearch();
+    searcher.init();
 
     // run planner and time its execution
-    Clock::time_point t0 = Clock::now();
     searcher.run();
-    Clock::time_point t1 = Clock::now();
-
-    double dt = chrono::duration<double, chrono::seconds::period>(t1 - t0).count();
+    
     Cost path_length = searcher.data[searcher.goal].g;
-    cout << "Found path of length " << path_length << ". Discovered nodes = " << searcher.num_discovered << ". Expanded nodes: " << searcher.num_expanded << ". Time: " << dt << endl;
+    cout << "Found path of length " << path_length << ". Discovered nodes = " << searcher.num_discovered << ". Expanded nodes: " << searcher.num_expanded << ". Time: " << searcher.time_elapsed << endl;
 
     // print solution if it was found
-    if (path_length < INFINITE) {
+    if (path_length <= searcher.w2 * searcher.opt_bound) {
       for (State& s : searcher.getSolution()) {
         printState(s);
       }
     }
 
     // report stats
-    printf("map %d: Path Length=%f Visited Nodes=%d Explored Nodes=%d Planning Time=%f\n", i, path_length, searcher.num_discovered, searcher.num_expanded, dt);
-    fprintf(fout, "%d %f %f %f %d %f\n", NUM_THREADS, searcher.w1, searcher.w2, dt, searcher.num_expanded, path_length);
+    printf("map %d: Path Length=%f Visited Nodes=%d Explored Nodes=%d Planning Time=%f\n", i, path_length, searcher.num_discovered, searcher.num_expanded, searcher.time_elapsed);
+    fprintf(fout, "%f %f %f %d %f\n", searcher.w1, searcher.w2, searcher.time_elapsed, searcher.num_expanded, path_length);
   }
   fclose(fout);
 
