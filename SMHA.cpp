@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <chrono>
 #include <mpi.h>
+#include <string>
 using namespace std;
 
 typedef float Cost;
@@ -22,6 +23,7 @@ typedef chrono::high_resolution_clock Clock;
 typedef pair<vector<int>,vector<int> > State;
 
 // compile-time constants
+int SEED = 1;
 constexpr int MASK_CLOSED = 1;
 constexpr int MASK_CLOSED_ANCHOR = 3;
 constexpr int GRID_ROWS = 4;
@@ -31,8 +33,8 @@ constexpr int NUM_MOVES = 4;
 constexpr Cost INFINITE = 1e30;
 
 //communication constants
-constexpr int TOHEAD_BUFFER_SIZE = 1000; //Number of new g values before a message is sent. The actual buffer is double this, because it needs the node too.
-constexpr int FROMHEAD_BUFFER_SIZE = 2000; //Number of new g values before a message is sent. The actual buffer is double this, because it needs the node too.
+constexpr int TOHEAD_BUFFER_SIZE = 50; //Number of new g values before a message is sent. The actual buffer is double this, because it needs the node too.
+constexpr int FROMHEAD_BUFFER_SIZE = 100; //Number of new g values before a message is sent. The actual buffer is double this, because it needs the node too.
 constexpr int DATUM_SIZE = GRID_ROWS * GRID_COLS + 1 + 2; //4x4 state, mask, g, and h. Assumes Cost is same size as int
 constexpr int HEAD_NODE = 0;
 
@@ -81,25 +83,25 @@ Cost linearConflicts(const State& s1, const State& s2) {
   for (int r = 0; r < GRID_ROWS; ++r) {
     vector<int> conflicts(GRID_COLS, 0);
     for (int c1 = 0; c1 < GRID_COLS; ++c1)
-    for (int c2 = 0; c2 < c1; ++c2) {
+      for (int c2 = 0; c2 < c1; ++c2) {
       int val1 = s1.first[r*GRID_COLS + c1];
       int val2 = s2.first[r*GRID_COLS + c2];
-      if (s2.second[val1]/GRID_COLS == s2.second[val2]/GRID_COLS &&
-          s2.second[val1] < s2.second[val2]) {
-        conflicts[c1] |= 1<<c2;
-        conflicts[c2] |= 1<<c1;
+      if (s2.second[val1] / GRID_COLS == s2.second[val2] / GRID_COLS &&
+        s2.second[val1] < s2.second[val2]) {
+        conflicts[c1] |= 1 << c2;
+        conflicts[c2] |= 1 << c1;
       }
-    }
+      }
     while (true) {
       int c1 = 0;
       for (int c = 1; c < GRID_COLS; ++c)
-      if (__builtin_popcount(conflicts[c1]) < __builtin_popcount(conflicts[c]))
-        c1 = c;
+        if (__builtin_popcount(conflicts[c1]) < __builtin_popcount(conflicts[c]))
+          c1 = c;
       if (conflicts[c1] <= 0)
         break;
       conflicts[c1] = 0;
       for (int c2 = 0; c2 < GRID_COLS; ++c2)
-        conflicts[c2] &= ~(1<<c1);
+        conflicts[c2] &= ~(1 << c1);
       h += 2;
     }
   }
@@ -107,25 +109,25 @@ Cost linearConflicts(const State& s1, const State& s2) {
   for (int c = 0; c < GRID_COLS; ++c) {
     vector<int> conflicts(GRID_ROWS, 0);
     for (int r1 = 0; r1 < GRID_ROWS; ++r1)
-    for (int r2 = 0; r2 < r1; ++r2) {
+      for (int r2 = 0; r2 < r1; ++r2) {
       int val1 = s1.first[r1*GRID_COLS + c];
       int val2 = s2.first[r2*GRID_COLS + c];
-      if (s2.second[val1]%GRID_COLS == s2.second[val2]%GRID_COLS &&
-          s2.second[val1] < s2.second[val2]) {
-        conflicts[r1] |= 1<<r2;
-        conflicts[r2] |= 1<<r1;
+      if (s2.second[val1] % GRID_COLS == s2.second[val2] % GRID_COLS &&
+        s2.second[val1] < s2.second[val2]) {
+        conflicts[r1] |= 1 << r2;
+        conflicts[r2] |= 1 << r1;
       }
-    }
+      }
     while (true) {
       int r1 = 0;
       for (int r = 1; r < GRID_ROWS; ++r)
-      if (__builtin_popcount(conflicts[r1]) < __builtin_popcount(conflicts[r]))
-        r1 = r;
+        if (__builtin_popcount(conflicts[r1]) < __builtin_popcount(conflicts[r]))
+          r1 = r;
       if (conflicts[r1] <= 0)
         break;
       conflicts[r1] = 0;
       for (int r2 = 0; r2 < GRID_ROWS; ++r2)
-        conflicts[r2] &= ~(1<<r1);
+        conflicts[r2] &= ~(1 << r1);
       h += 2;
     }
   }
@@ -202,7 +204,7 @@ class Searcher {
 
     // this function determines the heuristics to be used
     Cost pairwiseH(const State& s1, const State& s2) {
-      return MD*manhattanDist(s1,s2) + LC*linearConflicts(s1,c2) + MT*misplacedTiles(s1,s2);
+      return MD*manhattanDist(s1,s2) + LC*linearConflicts(s1,s2) + MT*misplacedTiles(s1,s2);
     }
 
     Cost goalH(const State& s) {
@@ -221,15 +223,16 @@ class Searcher {
     }
 
     // assumes start, goal, w1 and w2 are already set
-    void init(mt19937& gen) {
+    void init() {
       if (comm_rank == HEAD_NODE) {
         MD = LC = 1, MT = 0;
       }
       else {
+        mt19937 gen2(comm_rank);
         uniform_real_distribution<> dis(1.0, 5.0);
-        MD = dis(gen);
-        LC = dis(gen);
-        MT = dis(gen);
+        MD = dis(gen2);
+        LC = dis(gen2);
+        MT = dis(gen2);
       }
 
       open.clear();
@@ -271,109 +274,178 @@ class Searcher {
           t_data.g = s_data.g + 1;
           if (!(t_data.mask & MASK_CLOSED)) {
             insert(t, t_data);
-      updated_states.insert(s);
+            updated_states.insert(s);
           }
         }
       }
     }
 
+    void send_message() {
+      ;
+    }
+
     void run() {
       // repeat until some thread declares the search to be finished
-    int flag = 0;
-    MPI_Status status;
-    MPI_Request request;
+      int flag = 0;
+      MPI_Status status;
+      MPI_Request request;
+      int error = -1;
 
-    cout << "Starting run" << endl;
+      cout << "Starting run" << endl;
       while (true) {
-      if (comm_rank != HEAD_NODE) {
-        if (updated_states.size() >= TOHEAD_BUFFER_SIZE) {
-          assert(updated_states.size() == TOHEAD_BUFFER_SIZE);
-          //Non-anchor sends messages
-          int index = 0;
-          auto it = updated_states.cbegin();
-          for (; index < TOHEAD_BUFFER_SIZE*DATUM_SIZE && it != updated_states.cend(); ++it) {
-            const State& s = *it;
-            StateData& s_data = data[s];
-            for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
-              to_buffer[index++] = s.first[pos];
-            }
-            to_buffer[index++] = s_data.mask;
-            memcpy(&to_buffer[index++], &s_data.g, sizeof(Cost));
-            memcpy(&to_buffer[index++], &s_data.h, sizeof(Cost));
-          }
-          MPI_Isend(to_buffer, TOHEAD_BUFFER_SIZE*DATUM_SIZE, MPI_INT, HEAD_NODE, 0, MPI_COMM_WORLD, &request); //Send data to head node
-          updated_states.clear();
-        }
-
-        //Non-anchor checks for receiving messages
-        if (MPI_Iprobe(HEAD_NODE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status)) {
-          MPI_Irecv(from_buffer, FROMHEAD_BUFFER_SIZE*DATUM_SIZE + 1, MPI_INT, HEAD_NODE, 0, MPI_COMM_WORLD, &request);
-          int index = 0;
-          for (int datum = 0; datum < FROMHEAD_BUFFER_SIZE; datum++) {
-            State s;
-            s.second.resize(GRID_ROWS * GRID_COLS);
-            for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
-              s.first.push_back(from_buffer[index]);
-              s.second[from_buffer[index++]] = pos;
-            }
-            assert(sizeof(Cost) == sizeof(int));
-            int maskNew;
-            Cost gNew, hNew;
-            memcpy(&maskNew, &from_buffer[index++], sizeof(int));
-            memcpy(&gNew, &from_buffer[index++], sizeof(Cost));
-            memcpy(&hNew, &from_buffer[index++], sizeof(Cost));
-            StateData& s_data = data[s];
-            s_data.mask |= maskNew;
-            if (s_data.g > gNew) {
-              s_data.g = gNew;
-              s_data.h = hNew;
-            }
-          }
-          memcpy(&opt_bound, &from_buffer[index++], sizeof(Cost)); // open.cbegin()->first
-        }
-      }
-      else {
-        // the anchor search sends opt_bound to all the others
-          if (open.empty())
-            opt_bound = INFINITE;
-          else
-            opt_bound = max(opt_bound, open.cbegin()->first);
-
-        //Anchor checks for received messages
-        for (int i = 0; i < comm_size; i++) {
-          if (i == HEAD_NODE) {
-            continue;
-          }
-          if (MPI_Iprobe(i, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status)) {
-            MPI_Irecv(to_buffer, TOHEAD_BUFFER_SIZE*DATUM_SIZE, MPI_INT, i, 0, MPI_COMM_WORLD, &request);
+        if (comm_rank != HEAD_NODE) {
+          if (updated_states.size() >= TOHEAD_BUFFER_SIZE) {
+            cout << "Non-Anchor sending message" << endl;
+            assert(updated_states.size() == TOHEAD_BUFFER_SIZE);
+            //Non-anchor sends messages
             int index = 0;
-            for (int datum = 0; datum < TOHEAD_BUFFER_SIZE; datum++) {
+            auto it = updated_states.cbegin();
+            for (; index < TOHEAD_BUFFER_SIZE*DATUM_SIZE && it != updated_states.cend(); ++it) {
+              const State& s = *it;
+              StateData& s_data = data[s];
+              for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
+                to_buffer[index++] = s.first[pos];
+              }
+              to_buffer[index++] = s_data.mask;
+              memcpy(&to_buffer[index++], &s_data.g, sizeof(Cost));
+              memcpy(&to_buffer[index++], &s_data.h, sizeof(Cost));
+            }
+            cout << "Sending message of length " << index << endl;
+            for (int x = 0; x < TOHEAD_BUFFER_SIZE*DATUM_SIZE; x += 1) {
+              cout << "Sending Message int at part " << x << ": " << to_buffer[x] << endl;
+            }
+            error = MPI_Isend(to_buffer, TOHEAD_BUFFER_SIZE*DATUM_SIZE, MPI_INT, HEAD_NODE, 0, MPI_COMM_WORLD, &request); //Send data to head node
+            if (error != MPI_SUCCESS) {
+              cout << "ERROR: " << error << endl;
+            }
+            updated_states.clear();
+          }
+
+          // Non-anchor checks for receiving messages
+          error = MPI_Iprobe(HEAD_NODE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
+          if (error != MPI_SUCCESS) {
+            cout << "ERROR: " << error << endl;
+          }
+          if (flag && 1 == 0) {
+            cout << "Non-Anchor receiving message" << endl;
+            error = MPI_Irecv(from_buffer, FROMHEAD_BUFFER_SIZE*DATUM_SIZE + 1, MPI_INT, HEAD_NODE, 0, MPI_COMM_WORLD, &request);
+            int index = 0;
+            for (int datum = 0; datum < FROMHEAD_BUFFER_SIZE; datum++) {
               State s;
               s.second.resize(GRID_ROWS * GRID_COLS);
               for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
-                s.first.push_back(to_buffer[index]);
-                s.second[to_buffer[index++]] = pos;
+                s.first.push_back(from_buffer[index]);
+                s.second[from_buffer[index++]] = pos;
               }
               assert(sizeof(Cost) == sizeof(int));
               int maskNew;
               Cost gNew, hNew;
-              memcpy(&maskNew, &to_buffer[index++], sizeof(int));
-              memcpy(&gNew, &to_buffer[index++], sizeof(Cost));
-              memcpy(&hNew, &to_buffer[index++], sizeof(Cost));
+              memcpy(&maskNew, &from_buffer[index++], sizeof(int));
+              memcpy(&gNew, &from_buffer[index++], sizeof(Cost));
+              memcpy(&hNew, &from_buffer[index++], sizeof(Cost));
               StateData& s_data = data[s];
               s_data.mask |= maskNew;
               if (s_data.g > gNew) {
                 s_data.g = gNew;
                 s_data.h = hNew;
               }
-              updated_states.insert(s);
+            }
+            memcpy(&opt_bound, &from_buffer[index++], sizeof(Cost)); // open.cbegin()->first
+          }
+        }
+        else {
+          // the anchor search sends opt_bound to all the others
+          if (open.empty())
+            opt_bound = INFINITE;
+          else
+            opt_bound = max(opt_bound, open.cbegin()->first);
+
+          //Anchor checks for received messages
+          for (int i = 0; i < comm_size; i++) {
+            if (i == HEAD_NODE) {
+              continue;
+            }
+            error = MPI_Iprobe(i, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &status);
+            if (error != MPI_SUCCESS) {
+              cout << "ERROR: " << error << endl;
+            }
+            if (flag) {
+              error = MPI_Irecv(to_buffer, TOHEAD_BUFFER_SIZE*DATUM_SIZE, MPI_INT, i, 0, MPI_COMM_WORLD, &request);
+              cout << "Anchor receiving message" << endl;
+              for (int x = 0; x < TOHEAD_BUFFER_SIZE*DATUM_SIZE; x += 1) {
+                cout << "Message int at part " << x << ": " << to_buffer[x] << endl;
+              }
+              int index = 0;
+              for (int datum = 0; datum < TOHEAD_BUFFER_SIZE; datum++) {
+                State s;
+                s.second.resize(GRID_ROWS * GRID_COLS);
+                for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
+                  s.first.push_back(to_buffer[index]);
+                  s.second[to_buffer[index++]] = pos;
+                }
+                assert(sizeof(Cost) == sizeof(int));
+                int maskNew;
+                Cost gNew, hNew;
+                memcpy(&maskNew, &to_buffer[index++], sizeof(int));
+                memcpy(&gNew, &to_buffer[index++], sizeof(Cost));
+                memcpy(&hNew, &to_buffer[index++], sizeof(Cost));
+                StateData& s_data = data[s];
+                s_data.mask |= maskNew;
+
+                cout << "datum " << datum << " Old g/h: " << s_data.g << "," << s_data.h << ". New g/h: " << gNew << "," << hNew << endl;
+                if (s_data.g > gNew) {
+                  s_data.g = gNew;
+                  s_data.h = hNew;
+                }
+                updated_states.insert(s);
+              }
+            }
+          }
+
+          //Anchor sends messages
+          if (updated_states.size() > FROMHEAD_BUFFER_SIZE) {
+            cout << "Anchor sending message" << endl;
+            //cout << "ABOUT TO COMMUNICATE (HEAD)" << endl;
+            int index = 0;
+            auto it = updated_states.cbegin();
+            for (; index < FROMHEAD_BUFFER_SIZE*DATUM_SIZE && it != updated_states.cend(); ++it) {
+              const State& s = *it;
+              StateData& s_data = data[s];
+              for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
+                from_buffer[index++] = s.first[pos];
+              }
+              from_buffer[index++] = s_data.mask;
+              memcpy(&from_buffer[index++], &s_data.g, sizeof(Cost));
+              memcpy(&from_buffer[index++], &s_data.h, sizeof(Cost));
+            }
+            updated_states.erase(updated_states.cbegin(), it);
+            memcpy(&from_buffer[index++], &opt_bound, sizeof(Cost));
+            for (int i = 0; i < comm_size; i++) {
+              error = MPI_Isend(from_buffer, FROMHEAD_BUFFER_SIZE*DATUM_SIZE + 1, MPI_INT, i, 0, MPI_COMM_WORLD, &request);
             }
           }
         }
 
-        //Anchor sends messages
-        if (updated_states.size() > FROMHEAD_BUFFER_SIZE) {
-          cout << "ABOUT TO COMMUNICATE (HEAD)" << endl;
+        // get a State to expand
+        auto it = open.cbegin();
+
+        // search termination condition
+        if (it == open.cend() || data[goal].g <= w2 * opt_bound) {
+          // flush and kill
+          // but don't kill the master!!!!!
+          break;
+        }
+        State s = it->second;
+        StateData& s_data = data[s];
+        open.erase(it);
+        num_expanded++;
+        expand(s, s_data);
+      }
+
+
+      //Clean-up
+      if (comm_rank == HEAD_NODE) {
+        while (updated_states.size() > FROMHEAD_BUFFER_SIZE) {
           int index = 0;
           auto it = updated_states.cbegin();
           for (; index < FROMHEAD_BUFFER_SIZE*DATUM_SIZE && it != updated_states.cend(); ++it) {
@@ -392,117 +464,77 @@ class Searcher {
             MPI_Isend(from_buffer, FROMHEAD_BUFFER_SIZE*DATUM_SIZE + 1, MPI_INT, i, 0, MPI_COMM_WORLD, &request);
           }
         }
-      }
 
-        // get a State to expand
-        auto it = open.cbegin();
-
-    // search termination condition
-    if (it == open.cend() || data[goal].g <= w2 * opt_bound) {
-      // flush and kill
-          // but don't kill the master!!!!!
-          break;
-        }
-        State s = it->second;
-        StateData& s_data = data[s];
-        open.erase(it);
-        num_expanded++;
-        expand(s, s_data);
-      }
-
-
-    //Clean-up
-    if (comm_rank == HEAD_NODE) {
-      while (updated_states.size() > FROMHEAD_BUFFER_SIZE) {
-        int index = 0;
-        auto it = updated_states.cbegin();
-        for (; index < FROMHEAD_BUFFER_SIZE*DATUM_SIZE && it != updated_states.cend(); ++it) {
-          const State& s = *it;
-          StateData& s_data = data[s];
-          for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
-            from_buffer[index++] = s.first[pos];
+        if (updated_states.size() > 0) {
+          int index = 0;
+          int datum_count = 0;
+          auto it = updated_states.cbegin();
+          for (; index < FROMHEAD_BUFFER_SIZE*DATUM_SIZE && it != updated_states.end(); ++it) {
+            const State& s = *it;
+            StateData& s_data = data[s];
+            for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
+              from_buffer[index++] = s.first[pos];
+            }
+            from_buffer[index++] = s_data.mask;
+            memcpy(&from_buffer[index++], &s_data.g, sizeof(Cost));
+            memcpy(&from_buffer[index++], &s_data.h, sizeof(Cost));
+            datum_count++;
           }
-          from_buffer[index++] = s_data.mask;
-          memcpy(&from_buffer[index++], &s_data.g, sizeof(Cost));
-          memcpy(&from_buffer[index++], &s_data.h, sizeof(Cost));
-        }
-        updated_states.erase(updated_states.cbegin(), it);
-        memcpy(&from_buffer[index++], &opt_bound, sizeof(Cost));
-        for (int i = 0; i < comm_size; i++) {
-          MPI_Isend(from_buffer, FROMHEAD_BUFFER_SIZE*DATUM_SIZE + 1, MPI_INT, i, 0, MPI_COMM_WORLD, &request);
-        }
-      }
-
-      if (updated_states.size() > 0) {
-        int index = 0;
-        int datum_count = 0;
-        auto it = updated_states.cbegin();
-        for (; index < FROMHEAD_BUFFER_SIZE*DATUM_SIZE && it != updated_states.end(); ++it) {
-          const State& s = *it;
-          StateData& s_data = data[s];
-          for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
-            from_buffer[index++] = s.first[pos];
-          }
-          from_buffer[index++] = s_data.mask;
-          memcpy(&from_buffer[index++], &s_data.g, sizeof(Cost));
-          memcpy(&from_buffer[index++], &s_data.h, sizeof(Cost));
-          datum_count++;
-        }
-        while (datum_count < FROMHEAD_BUFFER_SIZE) {
-        memcpy(&from_buffer[index], &from_buffer[index - DATUM_SIZE], DATUM_SIZE * sizeof(int));
-        index += DATUM_SIZE;
-        datum_count++;
-        }
-        updated_states.clear();
-        memcpy(&from_buffer[index++], &opt_bound, sizeof(Cost));
-        for (int i = 0; i < comm_size; i++) {
-          MPI_Isend(from_buffer, FROMHEAD_BUFFER_SIZE*DATUM_SIZE + 1, MPI_INT, i, 0, MPI_COMM_WORLD, &request);
-        }
-      }
-    }
-    else {
-      while (updated_states.size() >= TOHEAD_BUFFER_SIZE) {
-        //Non-anchor sends messages
-        int index = 0;
-        auto it = updated_states.cbegin();
-        for (; index < TOHEAD_BUFFER_SIZE*DATUM_SIZE && it != updated_states.cend(); ++it) {
-          const State& s = *it;
-          StateData& s_data = data[s];
-          for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
-            to_buffer[index++] = s.first[pos];
-          }
-          to_buffer[index++] = s_data.mask;
-          memcpy(&to_buffer[index++], &s_data.g, sizeof(Cost));
-          memcpy(&to_buffer[index++], &s_data.h, sizeof(Cost));
-        }
-        MPI_Isend(to_buffer, TOHEAD_BUFFER_SIZE*DATUM_SIZE, MPI_INT, HEAD_NODE, 0, MPI_COMM_WORLD, &request); //Send data to head node
-        updated_states.erase(updated_states.cbegin(), it);
-      }
-
-      if (updated_states.size() > 0) {
-        int index = 0;
-        int datum_count = 0;
-        auto it = updated_states.cbegin();
-        for (; index < TOHEAD_BUFFER_SIZE*DATUM_SIZE && it != updated_states.cend(); ++it) {
-          const State& s = *it;
-          StateData& s_data = data[s];
-          for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
-            to_buffer[index++] = s.first[pos];
-          }
-          to_buffer[index++] = s_data.mask;
-          memcpy(&to_buffer[index++], &s_data.g, sizeof(Cost));
-          memcpy(&to_buffer[index++], &s_data.h, sizeof(Cost));
-          datum_count++;
-        }
-        while (datum_count < FROMHEAD_BUFFER_SIZE) {
-          memcpy(&to_buffer[index], &to_buffer[index - DATUM_SIZE], DATUM_SIZE * sizeof(int));
+          while (datum_count < FROMHEAD_BUFFER_SIZE) {
+          memcpy(&from_buffer[index], &from_buffer[index - DATUM_SIZE], DATUM_SIZE * sizeof(int));
           index += DATUM_SIZE;
           datum_count++;
+          }
+          updated_states.clear();
+          memcpy(&from_buffer[index++], &opt_bound, sizeof(Cost));
+          for (int i = 0; i < comm_size; i++) {
+            MPI_Isend(from_buffer, FROMHEAD_BUFFER_SIZE*DATUM_SIZE + 1, MPI_INT, i, 0, MPI_COMM_WORLD, &request);
+          }
         }
-        MPI_Isend(to_buffer, TOHEAD_BUFFER_SIZE*DATUM_SIZE, MPI_INT, HEAD_NODE, 0, MPI_COMM_WORLD, &request); //Send data to head node
-        updated_states.clear();
       }
-    }
+      else {
+        while (updated_states.size() >= TOHEAD_BUFFER_SIZE) {
+          //Non-anchor sends messages
+          int index = 0;
+          auto it = updated_states.cbegin();
+          for (; index < TOHEAD_BUFFER_SIZE*DATUM_SIZE && it != updated_states.cend(); ++it) {
+            const State& s = *it;
+            StateData& s_data = data[s];
+            for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
+              to_buffer[index++] = s.first[pos];
+            }
+            to_buffer[index++] = s_data.mask;
+            memcpy(&to_buffer[index++], &s_data.g, sizeof(Cost));
+            memcpy(&to_buffer[index++], &s_data.h, sizeof(Cost));
+          }
+          MPI_Isend(to_buffer, TOHEAD_BUFFER_SIZE*DATUM_SIZE, MPI_INT, HEAD_NODE, 0, MPI_COMM_WORLD, &request); //Send data to head node
+          updated_states.erase(updated_states.cbegin(), it);
+        }
+
+        if (updated_states.size() > 0) {
+          int index = 0;
+          int datum_count = 0;
+          auto it = updated_states.cbegin();
+          for (; index < TOHEAD_BUFFER_SIZE*DATUM_SIZE && it != updated_states.cend(); ++it) {
+            const State& s = *it;
+            StateData& s_data = data[s];
+            for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
+              to_buffer[index++] = s.first[pos];
+            }
+            to_buffer[index++] = s_data.mask;
+            memcpy(&to_buffer[index++], &s_data.g, sizeof(Cost));
+            memcpy(&to_buffer[index++], &s_data.h, sizeof(Cost));
+            datum_count++;
+          }
+          while (datum_count < FROMHEAD_BUFFER_SIZE) {
+            memcpy(&to_buffer[index], &to_buffer[index - DATUM_SIZE], DATUM_SIZE * sizeof(int));
+            index += DATUM_SIZE;
+            datum_count++;
+          }
+          MPI_Isend(to_buffer, TOHEAD_BUFFER_SIZE*DATUM_SIZE, MPI_INT, HEAD_NODE, 0, MPI_COMM_WORLD, &request); //Send data to head node
+          updated_states.clear();
+        }
+      }
     }
 
     // get the path: a sequence of states from start to goal
@@ -521,38 +553,40 @@ class Searcher {
 Searcher searcher;
 
 void prepareDistributedSearch() {
-    searcher.w1 = 2.0;
-    searcher.w2 = 2.0;
-    // make the standard orderly goal state
-    for (int i = 1; i < GRID_ROWS*GRID_COLS; i++)
-      problem.goal.first.push_back(i);
-    problem.goal.first.push_back(0);
-    problem.goal.second.resize(GRID_ROWS * GRID_COLS);
-    for (int i = 1; i < GRID_ROWS*GRID_COLS; i++)
-      problem.goal.second[problem.goal.first[i]] = i;
-    // make a random start state
-    searcher.start = searcher.goal;
-    mt19937 gen(1);
-    bool parity = false;
-    for (int i = 0; i < GRID_ROWS*GRID_COLS-2; ++i)
-    {
-      uniform_int_distribution<> dis(i, GRID_ROWS*GRID_COLS-2);
-      int swap_cell = dis(gen);
-      if (swap_cell != i) {
-        parity = !parity;
-      }
-      swap(searcher.start.first[i], searcher.start.first[swap_cell]);
-      swap(searcher.start.second[searcher.start.first[i]],
-           searcher.start.second[searcher.start.first[swap_cell]]);
+  searcher.w1 = 2.0;
+  searcher.w2 = 2.0;
+  // make the standard orderly goal state
+  for (int i = 1; i < GRID_ROWS*GRID_COLS; i++) {
+    searcher.goal.first.push_back(i);
+  }
+  searcher.goal.first.push_back(0);
+  searcher.goal.second.resize(GRID_ROWS * GRID_COLS);
+  for (int i = 1; i < GRID_ROWS*GRID_COLS; i++) {
+    searcher.goal.second[searcher.goal.first[i]] = i;
+  }
+  // make a random start state
+  searcher.start = searcher.goal;
+  mt19937 gen(SEED);
+  bool parity = false;
+  for (int i = 0; i < GRID_ROWS*GRID_COLS - 2; ++i)
+  {
+    uniform_int_distribution<> dis(i, GRID_ROWS*GRID_COLS - 2);
+    int swap_cell = dis(gen);
+    if (swap_cell != i) {
+      parity = !parity;
     }
-    // fix the parity to ensure a solution exists
-    if (parity) {
-      swap(searcher.start.first[0], searcher.start.first[1]);
-      swap(searcher.start.second[searcher.start.first[0]],
-           searcher.start.second[searcher.start.first[1]]);
-    }
+    swap(searcher.start.first[i], searcher.start.first[swap_cell]);
+    swap(searcher.start.second[searcher.start.first[i]],
+      searcher.start.second[searcher.start.first[swap_cell]]);
+  }
+  // fix the parity to ensure a solution exists
+  if (parity) {
+    swap(searcher.start.first[0], searcher.start.first[1]);
+    swap(searcher.start.second[searcher.start.first[0]],
+      searcher.start.second[searcher.start.first[1]]);
+  }
 
-    searcher.init(gen);
+  searcher.init();
 }
 
 int main(int argc, char** argv) {
@@ -563,6 +597,22 @@ int main(int argc, char** argv) {
 
   // Get the rank of the process
   MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank);
+
+  char processor_name[MPI_MAX_PROCESSOR_NAME];
+  int name_len;
+  MPI_Get_processor_name(processor_name, &name_len);
+  printf("Hello world from processor %s, rank %d"
+    " out of %d processors\n",
+    processor_name, comm_rank, comm_size);
+
+  if (argc > 1) {
+    for (int i = 1; i < argc; i++) {
+      std::string arg = argv[i];
+      if (arg == "-seed") {
+        SEED = atoi(argv[++i]);
+      }
+    }
+  }
 
   FILE* fout = fopen("stats.csv","w");
   // we can set it up to loop over multiple problem instances
