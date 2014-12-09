@@ -192,6 +192,8 @@ public:
   double w1, w2;
   // multi-heuristic mixing coefficients
   double MD, LC, MT;
+  // Searcher-specific closing mask
+  int closing_mask;
   // the priority queue or search frontier
   multimap<Cost, State> open;
   // a dictionary of seen states and their corresponding data
@@ -231,11 +233,17 @@ public:
     s_data.iter = open.insert(pair<Cost, State>(f(s_data), s));
   }
 
+  void erase(State& s, StateData& s_data) {
+    open.erase(s_data.iter);
+    s_data.iter = open.cend();
+  }
+
   // assumes start, goal, w1 and w2 are already set
   void init() {
     if (comm_rank == HEAD_NODE) {
       MD = LC = 1;
       MT = 0;
+      closing_mask = MASK_CLOSED_ANCHOR;
     }
     else {
       mt19937 gen2(1009 * SEED + comm_rank);
@@ -243,6 +251,7 @@ public:
       MD = dis(gen2);
       LC = dis(gen2);
       MT = dis(gen2);
+      closing_mask = MASK_CLOSED;
     }
 
     open.clear();
@@ -266,20 +275,8 @@ public:
   }
 
   void expand(const State& s, StateData& s_data) {
-    // assert(!(s_data.mask & MASK_CLOSED));
-    if (comm_rank == HEAD_NODE) {
-      if (s_data.mask & MASK_CLOSED_ANCHOR) {
-        return;
-      }
-      s_data.mask |= MASK_CLOSED_ANCHOR;
-      s_data.mask |= MASK_CLOSED;
-    }
-    else {
-      if (s_data.mask & MASK_CLOSED) {
-        return;
-      }
-      s_data.mask |= MASK_CLOSED;
-    }
+    assert(!(s_data.mask & closing_mask));
+    closing_mask.mask |= MASK_CLOSED | closing_mask;
 
     for (State& t : getSuccessors(s)) {
       StateData& t_data = data[t];
@@ -293,15 +290,16 @@ public:
       if (t_data.g > s_data.g + 1) {
         t_data.g = s_data.g + 1;
         t_data.bp = s;
-        if (!(t_data.mask & MASK_CLOSED)) {
+        if (!(t_data.mask & closing_mask)) {
           insert(t, t_data);
-          updated_states.insert(s);
+          updated_states.insert(t);
         }
       }
     }
   }
 
-  State update_state(int * buffer, int& index) { // when passed a buffer, and a starting point in that buffer, interprets a state, updates its stateData, and returns it.
+  // when passed a buffer, and a starting point in that buffer, interprets a state, updates its stateData, and returns it.
+  State update_state(int * buffer, int& index) {
     int position_sum = 0, indexStart = index; // sanity check
     
     State s;
@@ -339,16 +337,22 @@ public:
 
     StateData& s_data = data[s];
     s_data.mask |= maskNew;
+    // if necessary, close this state
+    if ((s_data.mask & closing_mask) && s_data.iter != open.cend()) {
+      erase(s, s_data);
+    }
+    // if necessary, compute heuristics
     if (s_data.g == INFINITE) {
       if (comm_rank == HEAD_NODE)
         s_data.h = s_data.hAnch = hAnchNew;
       else
         computeH(s, s_data);
     }
+    // if necessary, update g and bp
     if (s_data.g > gNew) {
       s_data.g = gNew;
       s_data.bp = bpNew;
-      if (!(s_data.mask & MASK_CLOSED)) {
+      if (!(s_data.mask & closing_mask)) {
         insert(s, s_data);
       }
     }
@@ -357,7 +361,8 @@ public:
     return s;
   }
 
-  void serialize_state(const State * state, StateData * s_data, int * buffer, int& index) { //When passed in a state, it will serialize the state's data and insert it into the buffer starting at index
+  //When passed in a state, it will serialize the state's data and insert it into the buffer starting at index
+  void serialize_state(const State * state, StateData * s_data, int * buffer, int& index) {
     int indexStart = index; // sanity check
     
     for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
@@ -376,7 +381,6 @@ public:
   }
 
   void run() {
-    // repeat until some thread declares the search to be finished
     int flag = 0;
     MPI_Status status;
     MPI_Request request;
@@ -384,6 +388,7 @@ public:
 
     cout << "Starting run" << endl;
     int iter = 0;
+    // repeat until some thread declares the search to be finished
     while (true) {
       if (comm_rank == HEAD_NODE) {
         if (open.empty()) {
@@ -474,7 +479,7 @@ public:
       }
       State s = it->second;
       StateData& s_data = data[s];
-      open.erase(it);
+      erase(s, s_data);
       num_expanded++;
       expand(s, s_data);
 
