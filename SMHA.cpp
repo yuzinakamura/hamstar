@@ -301,13 +301,14 @@ public:
     }
   }
 
-  State update_state(int * buffer, int index) { // when passed a buffer, and a starting point in that buffer, interprets a state, updates its stateData, and returns it.
-    int position_sum = 0; // sanity check
+  State update_state(int * buffer, int& index) { // when passed a buffer, and a starting point in that buffer, interprets a state, updates its stateData, and returns it.
+    int position_sum = 0, indexStart = index; // sanity check
+    
     State s;
     for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
       position_sum += buffer[index];
       assert(0 <= buffer[index] && buffer[index] < GRID_ROWS * GRID_COLS);
-      s.first.push_back(buffer[index]);
+      s.first.push_back(buffer[index++]);
     }
     completeHalfState(s);
     if (!(position_sum == (GRID_ROWS*GRID_COLS)*(GRID_ROWS*GRID_COLS - 1) / 2)) {
@@ -325,7 +326,7 @@ public:
     for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
       position_sum += buffer[index];
       assert(0 <= buffer[index] && buffer[index] < GRID_ROWS * GRID_COLS);
-      bpNew.first.push_back(buffer[index]);
+      bpNew.first.push_back(buffer[index++]);
     }
     completeHalfState(bpNew);
 
@@ -348,10 +349,14 @@ public:
       s_data.g = gNew;
       s_data.bp = bpNew;
     }
+
+    assert(index == indexStart + DATUM_SIZE);
     return s;
   }
 
   void serialize_state(const State * state, StateData * s_data, int * buffer, int& index) { //When passed in a state, it will serialize the state's data and insert it into the buffer starting at index
+    int indexStart = index; // sanity check
+    
     for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
       buffer[index++] = state->first[pos];
     }
@@ -363,6 +368,8 @@ public:
     index += sizeof(Cost) / sizeof(int);
     memcpy(buffer+index, &s_data->hAnch, sizeof(Cost));
     index += sizeof(Cost) / sizeof(int);
+
+    assert(index == indexStart + DATUM_SIZE);
   }
 
   void run() {
@@ -400,7 +407,6 @@ public:
             while (num_sent > 0) {
               num_sent--;
               State s = update_state(head_buffer, index);
-              index += DATUM_SIZE;
               updated_states.insert(s);
             }
           }
@@ -448,7 +454,6 @@ public:
           while (num_sent > 0) {
             num_sent--;
             State s = update_state(child_buffer, index);
-            index += DATUM_SIZE;
             //updated_states.insert(s);
           }
         }
