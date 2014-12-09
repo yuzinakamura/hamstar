@@ -276,7 +276,7 @@ public:
 
   void expand(const State& s, StateData& s_data) {
     assert(!(s_data.mask & closing_mask));
-    closing_mask.mask |= MASK_CLOSED | closing_mask;
+    s_data.mask |= MASK_CLOSED | closing_mask;
 
     for (State& t : getSuccessors(s)) {
       StateData& t_data = data[t];
@@ -343,6 +343,7 @@ public:
     }
     // if necessary, compute heuristics
     if (s_data.g == INFINITE) {
+      s_data.iter = open.cend();
       if (comm_rank == HEAD_NODE)
         s_data.h = s_data.hAnch = hAnchNew;
       else
