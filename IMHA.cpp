@@ -21,8 +21,8 @@ typedef pair<vector<int>,vector<int> > State;
 
 // compile-time constants
 const int MASK_CLOSED = 1;
-const int GRID_ROWS = 3;
-const int GRID_COLS = 3;
+const int GRID_ROWS = 4;
+const int GRID_COLS = 4;
 const int NUM_THREADS = 1;
 const int NUM_MOVES = 4;
 const Cost INFINITE = 1e30;
@@ -133,8 +133,8 @@ class Problem {
         for (int c2 = 0; c2 < c1; ++c2) {
           int val1 = s1.first[r*GRID_COLS + c1];
           int val2 = s2.first[r*GRID_COLS + c2];
-          if (s1.second[val1]/GRID_COLS == s2.second[val2]/GRID_COLS &&
-              s1.second[val1]%GRID_COLS <  s2.second[val2]%GRID_COLS) {
+          if (s2.second[val1]/GRID_COLS == s2.second[val2]/GRID_COLS &&
+              s2.second[val1] < s2.second[val2]) {
             conflicts[c1] |= 1<<c2;
             conflicts[c2] |= 1<<c1;
           }
@@ -159,8 +159,8 @@ class Problem {
         for (int r2 = 0; r2 < r1; ++r2) {
           int val1 = s1.first[r1*GRID_COLS + c];
           int val2 = s2.first[r2*GRID_COLS + c];
-          if (s1.second[val1]%GRID_COLS == s2.second[val2]%GRID_COLS &&
-              s1.second[val1]/GRID_COLS <  s2.second[val2]/GRID_COLS) {
+          if (s2.second[val1]%GRID_COLS == s2.second[val2]%GRID_COLS &&
+              s2.second[val1] < s2.second[val2]) {
             conflicts[r1] |= 1<<r2;
             conflicts[r2] |= 1<<r1;
           }
@@ -178,7 +178,6 @@ class Problem {
           h += 2;
         }
       }
-      printf("LC=%f ", h);
       return h;
     }
 
@@ -302,22 +301,18 @@ int main(int argc, char** argv) {
   for(int i=0; i<1/*argc*/; i++) {
     // prepare a problem instance
     Problem problem;
-    problem.w1 = 1.0;
-    problem.w2 = 1.0;
-	for (int i = 1; i < GRID_ROWS*GRID_COLS; i++) {
-		problem.goal.first.push_back(i);
-	}
-	problem.goal.first.push_back(0);
-	problem.goal.second.push_back(GRID_ROWS*GRID_COLS-1);
-	for (int i = 0; i < GRID_ROWS*GRID_COLS - 1; i++) {
-		problem.goal.second.push_back(i);
-	}
-    //problem.goal.first = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0};
-    //problem.goal.second = {15,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14};
+    problem.w1 = 2.0;
+    problem.w2 = 2.0;
+    // make the standard orderly goal state
+    for (int i = 1; i < GRID_ROWS*GRID_COLS; i++)
+      problem.goal.first.push_back(i);
+    problem.goal.first.push_back(0);
+    problem.goal.second.resize(GRID_ROWS * GRID_COLS);
+    for (int i = 1; i < GRID_ROWS*GRID_COLS; i++)
+      problem.goal.second[problem.goal.first[i]] = i;
     // make a random start state
     problem.start = problem.goal;
-    //random_device rd;
-    mt19937 gen(2);
+    mt19937 gen(1);
     bool parity = false;
     for (int i = 0; i < GRID_ROWS*GRID_COLS-2; ++i)
     {

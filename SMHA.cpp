@@ -84,8 +84,8 @@ Cost linearConflicts(const State& s1, const State& s2) {
     for (int c2 = 0; c2 < c1; ++c2) {
       int val1 = s1.first[r*GRID_COLS + c1];
       int val2 = s2.first[r*GRID_COLS + c2];
-      if (s1.second[val1]/GRID_COLS == s2.second[val2]/GRID_COLS &&
-          s1.second[val1]%GRID_COLS <  s2.second[val2]%GRID_COLS) {
+      if (s2.second[val1]/GRID_COLS == s2.second[val2]/GRID_COLS &&
+          s2.second[val1] < s2.second[val2]) {
         conflicts[c1] |= 1<<c2;
         conflicts[c2] |= 1<<c1;
       }
@@ -110,8 +110,8 @@ Cost linearConflicts(const State& s1, const State& s2) {
     for (int r2 = 0; r2 < r1; ++r2) {
       int val1 = s1.first[r1*GRID_COLS + c];
       int val2 = s2.first[r2*GRID_COLS + c];
-      if (s1.second[val1]%GRID_COLS == s2.second[val2]%GRID_COLS &&
-          s1.second[val1]/GRID_COLS <  s2.second[val2]/GRID_COLS) {
+      if (s2.second[val1]%GRID_COLS == s2.second[val2]%GRID_COLS &&
+          s2.second[val1] < s2.second[val2]) {
         conflicts[r1] |= 1<<r2;
         conflicts[r2] |= 1<<r1;
       }
@@ -129,7 +129,6 @@ Cost linearConflicts(const State& s1, const State& s2) {
       h += 2;
     }
   }
-  printf("LC = %d", h);
   return h;
 }
 
@@ -195,11 +194,11 @@ class Searcher {
     // simulate network communication with message queue and corresponding mutexes
     vector<queue<State> > network;
 
-  //Communication stuff
-  int * to_buffer;
-  int * from_buffer;
-  int buffer_index;
-  set<State> updated_states;
+    //Communication stuff
+    int * to_buffer;
+    int * from_buffer;
+    int buffer_index;
+    set<State> updated_states;
 
     // this function determines the heuristics to be used
     Cost pairwiseH(const State& s1, const State& s2) {
@@ -222,21 +221,23 @@ class Searcher {
     }
 
     // assumes start, goal, w1 and w2 are already set
-    void init() {
-      if (comm_rank == HEAD_NODE)
+    void init(mt19937& gen) {
+      if (comm_rank == HEAD_NODE) {
         MD = LC = 1, MT = 0;
+      }
       else {
-        MD = 1;
-        LC = 1;
-        MT = 1;
+        uniform_real_distribution<> dis(1.0, 5.0);
+        MD = dis(gen);
+        LC = dis(gen);
+        MT = dis(gen);
       }
 
       open.clear();
       data.clear();
       
-    to_buffer = new int[TOHEAD_BUFFER_SIZE * DATUM_SIZE];
-    from_buffer = new int[FROMHEAD_BUFFER_SIZE * DATUM_SIZE + 1]; //The +1 is a hack. It's a cost
-    buffer_index = 0;
+      to_buffer = new int[TOHEAD_BUFFER_SIZE * DATUM_SIZE];
+      from_buffer = new int[FROMHEAD_BUFFER_SIZE * DATUM_SIZE + 1]; //The +1 is a hack. It's a cost
+      buffer_index = 0;
 
       // create data entry for start state
       StateData& start_data = data[start];
@@ -520,15 +521,18 @@ class Searcher {
 Searcher searcher;
 
 void prepareDistributedSearch() {
-    searcher.w1 = 1.4;
-  searcher.w2 = 1.4;
-    searcher.goal.first = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0};
-    searcher.goal.second = {15,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14};
+    searcher.w1 = 2.0;
+    searcher.w2 = 2.0;
+    // make the standard orderly goal state
+    for (int i = 1; i < GRID_ROWS*GRID_COLS; i++)
+      problem.goal.first.push_back(i);
+    problem.goal.first.push_back(0);
+    problem.goal.second.resize(GRID_ROWS * GRID_COLS);
+    for (int i = 1; i < GRID_ROWS*GRID_COLS; i++)
+      problem.goal.second[problem.goal.first[i]] = i;
     // make a random start state
     searcher.start = searcher.goal;
-    random_device rd;
-    //mt19937 gen(rd());
-  mt19937 gen(1);
+    mt19937 gen(1);
     bool parity = false;
     for (int i = 0; i < GRID_ROWS*GRID_COLS-2; ++i)
     {
@@ -548,7 +552,7 @@ void prepareDistributedSearch() {
            searcher.start.second[searcher.start.first[1]]);
     }
 
-    searcher.init();
+    searcher.init(gen);
 }
 
 int main(int argc, char** argv) {
