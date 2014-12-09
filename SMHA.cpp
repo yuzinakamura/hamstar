@@ -138,7 +138,7 @@ Cost linearConflicts(const State& s1, const State& s2) {
 class StateData {
 public:
   // back-pointer to previous state along the discovered path
-  State bp;
+  vector<int> bp;
   // stores Boolean flags such as whether the state is CLOSED
   int mask;
   // g is the cost of a discovered path, h and hAnch estimate the remaining cost to goal
@@ -265,7 +265,7 @@ public:
     start_data.g = 0;
     computeH(start, start_data);
     start_data.iter = open.cend();
-    start_data.bp = start;
+    start_data.bp = start.first;
     insert(start, start_data);
 
     opt_bound = 0;
@@ -289,7 +289,7 @@ public:
       // critical section for updating g-value and inserting
       if (t_data.g > s_data.g + 1) {
         t_data.g = s_data.g + 1;
-        t_data.bp = s;
+        t_data.bp = s.first;
         if (!(t_data.mask & closing_mask)) {
           insert(t, t_data);
           updated_states.insert(t);
@@ -320,13 +320,12 @@ public:
     }
     assert(position_sum == (GRID_ROWS*GRID_COLS)*(GRID_ROWS*GRID_COLS-1)/2);
 
-    State bpNew;
+    vector<int> bpNew;
     for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
       position_sum += buffer[index];
       assert(0 <= buffer[index] && buffer[index] < GRID_ROWS * GRID_COLS);
-      bpNew.first.push_back(buffer[index++]);
+      bpNew.push_back(buffer[index++]);
     }
-    completeHalfState(bpNew);
 
     assert(sizeof(Cost) == sizeof(int));
     int maskNew;
@@ -337,10 +336,6 @@ public:
 
     StateData& s_data = data[s];
     s_data.mask |= maskNew;
-    // if necessary, close this state
-    if ((s_data.mask & closing_mask) && s_data.iter != open.cend()) {
-      erase(s, s_data);
-    }
     // if necessary, compute heuristics
     if (s_data.g == INFINITE) {
       s_data.iter = open.cend();
@@ -348,6 +343,10 @@ public:
         s_data.h = s_data.hAnch = hAnchNew;
       else
         computeH(s, s_data);
+    }
+    // if necessary, close this state
+    if ((s_data.mask & closing_mask) && s_data.iter != open.cend()) {
+      erase(s, s_data);
     }
     // if necessary, update g and bp
     if (s_data.g > gNew) {
@@ -370,7 +369,7 @@ public:
       buffer[index++] = state->first[pos];
     }
     for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
-      buffer[index++] = s_data->bp.first[pos];
+      buffer[index++] = s_data->bp[pos];
     }
     buffer[index++] = s_data->mask;
     memcpy(buffer+index, &s_data->g, sizeof(Cost));
@@ -494,7 +493,8 @@ public:
     State s = goal;
     sol.push_back(s);
     while (s != start) {
-      s = data[s].bp;
+      s.first = data[s].bp;
+      completeHalfState(s)
       sol.push_back(s);
     }
     reverse(sol.begin(), sol.end());
