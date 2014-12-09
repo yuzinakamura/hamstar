@@ -348,6 +348,9 @@ public:
     if (s_data.g > gNew) {
       s_data.g = gNew;
       s_data.bp = bpNew;
+      if (!(s_data.mask & MASK_CLOSED)) {
+        insert(s, s_data);
+      }
     }
 
     assert(index == indexStart + DATUM_SIZE);
