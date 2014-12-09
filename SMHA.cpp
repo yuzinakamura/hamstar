@@ -25,7 +25,7 @@ typedef pair<vector<int>, vector<int> > State;
 // compile-time constants
 int SEED = 1;
 constexpr int MASK_CLOSED = 1;
-constexpr int MASK_CLOSED_ANCHOR = 3;
+constexpr int MASK_CLOSED_ANCHOR = 2;
 constexpr int GRID_ROWS = 4;
 constexpr int GRID_COLS = 4;
 constexpr int NUM_THREADS = 1;
@@ -141,12 +141,12 @@ public:
   State bp;
   // stores Boolean flags such as whether the state is CLOSED
   int mask;
-  // g is the cost of a discovered path, h estimates the remaining cost to goal
-  Cost g, h;
+  // g is the cost of a discovered path, h and hAnch estimate the remaining cost to goal
+  Cost g, h, hAnch;
   // points to the state's location in the priority queue
   multimap<Cost, State>::const_iterator iter;
   // initialization
-  StateData() : mask(0), g(INFINITE), h(-1) {}
+  StateData() : mask(0), g(INFINITE) {}
 };
 
 // get the states directly reachable from s by a single tile move
@@ -176,6 +176,14 @@ vector<State> getSuccessors(const State& s)
   return successors;
 }
 
+// use s.first to generate its inverse permutation in s.second
+void completeHalfState(State& s) {
+  s.second.resize(s.first.size());
+  for (int i = 0; i < s.first.size(); i++) {
+    s.second[s.first[i]] = i;
+  }
+}
+
 // a process which performs a search, typically assigned to one thread on one machine
 class Searcher {
 public:
@@ -203,13 +211,13 @@ public:
   int * child_buffer;
   set<State> updated_states;
 
-  // this function determines the heuristics to be used
-  Cost pairwiseH(const State& s1, const State& s2) {
-    return MD*manhattanDist(s1, s2) + LC*linearConflicts(s1, s2) + MT*misplacedTiles(s1, s2);
-  }
-
-  Cost goalH(const State& s) {
-    return pairwiseH(s, goal);
+  // determine the heuristics to be used
+  void computeH(const State& s, StateData& s_data) {
+    Cost hMD = manhattanDist(s1, s2);
+    Cost hLC = linearConflicts(s1, s2);
+    Cost hMT = misplacedTiles(s1, s2);
+    s_data.hAnch = hMD + hLC;
+    s_data.h = MD*hMD + LC*hLC + MT*hMT;
   }
 
   // key for the priority queue
@@ -226,10 +234,11 @@ public:
   // assumes start, goal, w1 and w2 are already set
   void init() {
     if (comm_rank == HEAD_NODE) {
-      MD = LC = 1, MT = 0;
+      MD = LC = 1;
+      MT = 0;
     }
     else {
-      mt19937 gen2(comm_rank);
+      mt19937 gen2(1009 * SEED + comm_rank);
       uniform_real_distribution<> dis(1.0, 5.0);
       MD = dis(gen2);
       LC = dis(gen2);
@@ -245,7 +254,7 @@ public:
     // create data entry for start state
     StateData& start_data = data[start];
     start_data.g = 0;
-    start_data.h = goalH(start);
+    computeH(start, start_data)
     start_data.iter = open.cend();
     start_data.bp = start;
     insert(start, start_data);
@@ -257,24 +266,33 @@ public:
   }
 
   void expand(const State& s, StateData& s_data) {
-    //assert(!(s_data.mask & MASK_CLOSED));
-    if (s_data.mask & MASK_CLOSED) {
-      return;
+    // assert(!(s_data.mask & MASK_CLOSED));
+    if (comm_rank == HEAD_NODE) {
+      if (s_data.mask & MASK_CLOSED_ANCHOR) {
+        return;
+      }
+      s_data.mask |= MASK_CLOSED_ANCHOR;
+      s_data.mask |= MASK_CLOSED;
     }
-    s_data.mask |= MASK_CLOSED;
+    else {
+      if (s_data.mask & MASK_CLOSED) {
+        return;
+      }
+      s_data.mask |= MASK_CLOSED;
+    }
 
     for (State& t : getSuccessors(s)) {
       StateData& t_data = data[t];
-      if (t_data.h == -1) {
-        t_data.h = goalH(t);
+      if (t_data.g == INFINITE) {
+        computeH(t, t_data);
         t_data.iter = open.cend();
         num_discovered++;
       }
 
       // critical section for updating g-value and inserting
       if (t_data.g > s_data.g + 1) {
-        t_data.bp = s;
         t_data.g = s_data.g + 1;
+        t_data.bp = s;
         if (!(t_data.mask & MASK_CLOSED)) {
           insert(t, t_data);
           updated_states.insert(s);
@@ -283,20 +301,15 @@ public:
     }
   }
 
-  void send_message() {
-    ;
-  }
-
-  State update_state(int * buffer, int index) { //When passed a buffer, and a starting point in that buffer, interprets a state, updates its stateData, and returns it.
-    int position_sum = 0; //Sanity check
+  State update_state(int * buffer, int index) { // when passed a buffer, and a starting point in that buffer, interprets a state, updates its stateData, and returns it.
+    int position_sum = 0; // sanity check
     State s;
-    s.second.resize(GRID_ROWS * GRID_COLS);
     for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
       position_sum += buffer[index];
-      assert(buffer[index] >= 0 && buffer[index] <= GRID_ROWS * GRID_COLS);
+      assert(0 <= buffer[index] && buffer[index] < GRID_ROWS * GRID_COLS);
       s.first.push_back(buffer[index]);
-      s.second[buffer[index++]] = pos;
     }
+    completeHalfState(s);
     if (!(position_sum == (GRID_ROWS*GRID_COLS)*(GRID_ROWS*GRID_COLS - 1) / 2)) {
       cout << "Parse failure from comm. Buffer: ";
       for (int i = index; i < index + DATUM_SIZE; i++) {
@@ -308,33 +321,37 @@ public:
     }
     assert(position_sum == (GRID_ROWS*GRID_COLS)*(GRID_ROWS*GRID_COLS-1)/2);
 
-    State bp;
-    bp.second.resize(GRID_ROWS * GRID_COLS);
+    State bpNew;
     for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
       position_sum += buffer[index];
-      assert(buffer[index] >= 0 && buffer[index] <= GRID_ROWS * GRID_COLS);
-      bp.first.push_back(buffer[index]);
-      bp.second[buffer[index++]] = pos;
+      assert(0 <= buffer[index] && buffer[index] < GRID_ROWS * GRID_COLS);
+      bpNew.first.push_back(buffer[index]);
     }
+    completeHalfState(bpNew);
 
     assert(sizeof(Cost) == sizeof(int));
     int maskNew;
-    Cost gNew, hNew;
+    Cost gNew, hAnchNew;
     memcpy(&maskNew, &buffer[index++], sizeof(int));
     memcpy(&gNew, &buffer[index++], sizeof(Cost));
-    memcpy(&hNew, &buffer[index++], sizeof(Cost));
+    memcpy(&hAnchNew, &buffer[index++], sizeof(Cost));
 
     StateData& s_data = data[s];
     s_data.mask |= maskNew;
-    s_data.bp = bp;
+    if (s_data.g == INFINITE) {
+      if (comm_rank == HEAD_NODE)
+        t_data.h = t_data.hAnch = hAnchNew;
+      else
+        computeH(t, t_data);
+    }
     if (s_data.g > gNew) {
       s_data.g = gNew;
-      s_data.h = hNew;
+      s_data.bp = bpNew;
     }
     return s;
   }
 
-  void serialize_state(const State * state, StateData * s_data, int * buffer, int index) { //When passed in a state, it will serialize the state's data and insert it into the buffer starting at index
+  void serialize_state(const State * state, StateData * s_data, int * buffer, int& index) { //When passed in a state, it will serialize the state's data and insert it into the buffer starting at index
     for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
       buffer[index++] = state->first[pos];
     }
@@ -342,8 +359,10 @@ public:
       buffer[index++] = s_data->bp.first[pos];
     }
     buffer[index++] = s_data->mask;
-    memcpy(&buffer[index++], &s_data->g, sizeof(Cost));
-    memcpy(&buffer[index++], &s_data->h, sizeof(Cost));
+    memcpy(buffer+index, &s_data->g, sizeof(Cost));
+    index += sizeof(Cost) / sizeof(int);
+    memcpy(buffer+index, &s_data->hAnch, sizeof(Cost));
+    index += sizeof(Cost) / sizeof(int);
   }
 
   void run() {
@@ -396,7 +415,6 @@ public:
             const State& s = *it;
             StateData& s_data = data[s];
             serialize_state(&s, &s_data, child_buffer, index);
-            index += DATUM_SIZE;
           }
           updated_states.clear();
           //cout << "Process " << comm_rank << " sending gather" << endl;
@@ -416,7 +434,6 @@ public:
             const State& s = *it;
             StateData& s_data = data[s];
             serialize_state(&s, &s_data, child_buffer, index);
-            index += DATUM_SIZE;
           }
           updated_states.clear();
         }
@@ -480,10 +497,7 @@ void prepareDistributedSearch() {
     searcher.goal.first.push_back(i);
   }
   searcher.goal.first.push_back(0);
-  searcher.goal.second.resize(GRID_ROWS * GRID_COLS);
-  for (int i = 1; i < GRID_ROWS*GRID_COLS; i++) {
-    searcher.goal.second[searcher.goal.first[i]] = i;
-  }
+  completeHalfState(searcher.goal);
   // make a random start state
   searcher.start = searcher.goal;
   mt19937 gen(SEED);
