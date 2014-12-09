@@ -213,9 +213,9 @@ public:
 
   // determine the heuristics to be used
   void computeH(const State& s, StateData& s_data) {
-    Cost hMD = manhattanDist(s1, s2);
-    Cost hLC = linearConflicts(s1, s2);
-    Cost hMT = misplacedTiles(s1, s2);
+    Cost hMD = manhattanDist(s, goal);
+    Cost hLC = linearConflicts(s, goal);
+    Cost hMT = misplacedTiles(s, goal);
     s_data.hAnch = hMD + hLC;
     s_data.h = MD*hMD + LC*hLC + MT*hMT;
   }
@@ -254,7 +254,7 @@ public:
     // create data entry for start state
     StateData& start_data = data[start];
     start_data.g = 0;
-    computeH(start, start_data)
+    computeH(start, start_data);
     start_data.iter = open.cend();
     start_data.bp = start;
     insert(start, start_data);
@@ -340,9 +340,9 @@ public:
     s_data.mask |= maskNew;
     if (s_data.g == INFINITE) {
       if (comm_rank == HEAD_NODE)
-        t_data.h = t_data.hAnch = hAnchNew;
+        s_data.h = s_data.hAnch = hAnchNew;
       else
-        computeH(t, t_data);
+        computeH(s, s_data);
     }
     if (s_data.g > gNew) {
       s_data.g = gNew;
