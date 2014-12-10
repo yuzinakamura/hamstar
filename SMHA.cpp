@@ -537,6 +537,7 @@ public:
         // flush and kill, but don't kill the master!!!!!
 		  finished = 1;
 		  cout << "Machine " << comm_rank << " found a solution" << endl;
+		  cout << "Time taken: " << time_elapsed << ". Total expanded: " << total_expanded << " Local expanded: " << num_expanded << endl;
 
 		  //Now do one final comm to inform the others.
 		  if (comm_rank == HEAD_NODE) {
