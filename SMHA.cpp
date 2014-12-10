@@ -23,7 +23,6 @@ typedef chrono::high_resolution_clock Clock;
 typedef pair<vector<int>, vector<int> > State;
 
 // compile-time constants
-int SEED = 1;
 constexpr int MASK_CLOSED = 1;
 constexpr int MASK_CLOSED_ANCHOR = 2;
 constexpr int GRID_ROWS = 5;
@@ -43,6 +42,8 @@ constexpr int HEAD_NODE = 0;
 static int comm_size;
 static int comm_rank;
 static int finished = 0;
+int SEED = 1;
+string filename = "test";
 
 // right, up, left, down
 constexpr array<int, NUM_MOVES> moves = { 1, -GRID_COLS, -1, GRID_COLS };
@@ -683,9 +684,12 @@ int main(int argc, char** argv) {
     if (arg == "-seed" || arg == "-s") {
       SEED = atoi(argv[++i]);
     }
+    if (arg == "-filename" || arg == "-f") {
+      filename = argv[++i];
+    }
   }
 
-  FILE* fout = fopen("stats.csv", "a");
+  FILE* fout = fopen(filename + ".csv", "a");
   // we can set it up to loop over multiple problem instances
   for (int i = 0; i < 1/*TRIALS*/; i++) {
     // prepare the Searcher processes
