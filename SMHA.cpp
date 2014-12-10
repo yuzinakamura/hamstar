@@ -452,6 +452,7 @@ public:
           memset(child_buffer, 0, sizeof(int)*(BUFFER_SIZE*DATUM_SIZE + 4)*comm_size);
           int index = 0;
           child_buffer[index++] = updated_states.size();
+		  assert(updated_states.size() <= COMM_FREQ);
 		  child_buffer[index++] = num_discovered;
 		  child_buffer[index++] = num_expanded;
 		  child_buffer[index++] = finished;
@@ -475,6 +476,7 @@ public:
           int index = 0;
           memcpy(&child_buffer[index++], &opt_bound, sizeof(Cost));
           child_buffer[index++] = updated_states.size();
+		  assert(updated_states.size() <= BUFFER_SIZE);
 		  child_buffer[index++] = total_discovered;
 		  child_buffer[index++] = total_expanded;
 		  child_buffer[index++] = finished;
