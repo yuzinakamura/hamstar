@@ -6,11 +6,11 @@
 \usepackage{graphicx}
 \usepackage{bold-extra}
 
-\titleformat{\section}{\normalsize\bf}{}{0em}{}
+\titleformat{\section}{\normalsize\bf}{\thesection \hspace{5pt}}{0em}{}
+\titleformat{\subsection}{\normalsize\bf}{\thesubsection \hspace{5pt}}{0em}{}
 
 \begin{document}
 
-%\rightline{ }
 \centerline{\large{\textbf{Distributed Multi-Heuristic A* (HAMSTAR)}}}
 \centerline{Noam Brown, Aram Ebtekar, Yuzuko Nakamura}
 \centerline{15-712 Fall 2014 Final Project Report}
@@ -32,111 +32,86 @@ For this project, we implemented a distributed version of this second variant, S
 
 \section{Relevant Work}
 
-Our work is directly based off of Aine et al.'s original multi-heuristic anchored search \cite{Aine14} mentioned above. A parallelized version of the original A* algorithm was presented by Phillips et al. in \cite{Phillips14}. This method of parallelization makes inferences on when it's safe to expand multiple nodes in parallel, and in so doing maintains the approximate suboptimality guarantees of sequential wA*. This parallelization is dependent on the expansion operation being expensive enough to justify expanding multiple nodes in parallel, which may not be the case for all problems. By contrast, our method parallelizes the search process by constantly expanding multiple nodes chosen by different heuristics (instead of multiple nodes chosen by a single heuristic). As a result, our method differs from the previous in that, although nodes may be expanded multiple times by different machines, we do not require expansions to be slow.
+Our work is directly based off of Aine et al.'s original multi-heuristic anchored search \cite{Aine14} mentioned above. A parallelized version of the original A* algorithm was presented by Phillips et al. \cite{phillips2014pa}. This method of parallelization makes inferences on when it's safe to expand multiple nodes in parallel, and in so doing maintains the approximate suboptimality guarantees of sequential wA*. This parallelization is dependent on the expansion operation being expensive enough to justify expanding multiple nodes in parallel, which may not be the case for all problems. By contrast, our method parallelizes the search process by constantly expanding multiple nodes chosen by different heuristics (instead of multiple nodes chosen by a single heuristic). As a result, our method differs from the previous in that, although nodes may be expanded multiple times by different machines, we do not require expansions to be slow.
 
 \section{System Description}
 
 \begin{figure}
 \centering \includegraphics[width=5.0in]{system-diagram}
 \caption{A diagram of our system. One machine starts up the others and runs the admissible anchor search. The other machines run their individual heuristics. Communication is done using MPI. 
-\textcircled{1}\textbf{Anchor:} Starts heuristic machines; performs state expansions using anchor heuristic; receives, resolves, and broadcasts table updates; checks for termination conditions. \textcircled{2}\textbf{Heuristic:} Expands likely state (chosen using heuristic); updates path cost to its successors; communicate updates to anchor; termination conditions}
-
+\textcircled{1}\textbf{Anchor:} Starts heuristic machines; performs state expansions using anchor heuristic; receives, resolves, and broadcasts table updates; checks for termination conditions. \textcircled{2}\textbf{Heuristic:} Expands a likely state (chosen using heuristic); updates path cost to its successors; communicates updates to anchor; checks for termination conditions}
+\label{fig:sysdiag}
 \end{figure}
+
+An overview of our system is in Figure \ref{fig:sysdiag}. The main (anchor) machine starts up other heuristic machines. Each machine runs its own heuristic, with the anchor machine's being the admissible heuristic. Each of the non-anchor heuristic machines periodically send updates of the data structures (tables containing shortest path information found so far) to the anchor machine, which compares the data it receives and sends out table updates of the best paths known so far to all other nodes.
+
+\begin{figure}
+\centering \includegraphics[width=3in]{pseudocode}
+\caption{Pseudocode from Aine et al., detailing the original single-threaded version of the algorithm we parallelized.}
+\label{fig:pseudocode}
+\end{figure}
+
+
+Our algorithm is based off of the single-threaded, round-robin SMHA* code presented in \cite{Aine14} (Figure \ref{fig:pseudocode}). Our parallelized code was written in C++ with inter-process communication accomplished using MPI. The work was distributed over one or more of the 16-core machines in the Apt cluster. % TODO: Machine specs here? Or in the experimental setup section?
+
+\subsection{Design Decisions}
+
+\textbf{Interprocess communication with MPI}
+
+We investigated other frameworks designed for iterative algorithms on a stable dataset such as Spark and GraphLab. However, most of these frameworks were designed for chunking up a large dataset upon which a single operation is performed. Our application's needs differed from this model in that the dataset being operated on (the graph being explored) was shared by all workers, and the workers themselves were performing differing operations on subsets of the same data.
+
+In the case where the working set of data is small enough to be contained within each process, the system is much less complex, and the services provided by Spark and GraphLab are not so crucial. For these reasons we instead decided to distribute our code using MPI.
+
+\textbf{Synchronous broadcast vs. asynchronous sync-ups}
+
+% TODO: Fill me in! MPI-specific feature...
+
+\textbf{Update collation performed at anchor node}
+
+In our system, updates are sent from heuristic machines to the anchor machine, which collects these updates and combines them into a smaller set of table updates. For example, if two heuristic machines both send new shortest path values for the same state, the anchor machine receives both and at a later time sends out an update on the shortest path to that state that is the minimum of values it received. All nodes then update their data structures with this new information. 
+% TODO: ^ Is this right?
+
+One alternative to this method of communicating updates would be to have each node periodically broadcast its table updates to all other nodes and each node would incorporate those updates in its own table. This requires many more messages to go over the network and work to be duplicated. However, in the case where the anchor node is overloaded or has a possibility of going down, this alternative would be more appealing. We didn't consider this to be within the scope of this project, however, so we only implemented a system of update collation at the anchor machine. However, this may be interesting to investigate in the future.
+%TODO: Maybe justfiy or link with any result that indicates that the anchor node's workload becomes a bottleneck (or doesn't)
+
+
+
 
 \section{Experimental Setup}
 
+We tested our algorithm on a set of four random sliding tile puzzles of size 5x5, averaging the results of each trial into a single result. The data we collected were (1) running time, (2) number of states in the problem graph that were expanded during the course of searching for a solution, and (3) the length in steps of the best solution at termination.
 
-%\section{Goals}
+%TODO: ^ Explain how the states expanded node is calculated? Maybe as a footnote?
 
-%\subsection{75\% Goal}
-%\begin{enumerate}
-%\item Implement parallel versions of IMHA* and SMHA*
-%\item Identify bottlenecks in performance in running SMHA*
-%\end{enumerate}
+% TODO: Apt? Machine specs?
 
-%\subsection{100\% Goal}
-%\begin{enumerate}
-%\item Implement distributed versions of IMHA* and SMHA*, perhaps with fancier distributed heuristic selection (there exists recent work which uses a simple form of online learning)
-%\end{enumerate}
+% TODO: Talk about what we varied for the tests. Frequency of communication, effect of adding more heuristics, effect of adding more machines (maybe we want a graph that compares the effect of adding more heuristics on the same machine vs. adding more heuristics by using more machines), and comparison to single thread/round robing running time
 
-%\subsection{125\% Goal}
-%\begin{enumerate}
-%\item Design and implement a more sophisticated intermediate between IMHA* and SMHA*, based on the analysis of parallel and distributed system tradeoffs from our preliminary evaluations.
-%\end{enumerate}
+In MHA*, two weights are specified. The first weight ($w_1$) determines how much priority to give heuristic expansions over the anchor search. A higher $w_1$ results in more depth-first-search-like behavior. The second weight ($w_2$) determines how close to the current known minimum path length a path to the goal must be before being selected as a solution. MHA* gives a guarantee that the solution found at termination is at most $w_1 * w_2$ times the optimum value. For all experiments, we used $w_1$, $w_2 = 2$. Note that when there is only one heuristic in a test (the admissible heuristic), the optimal shortest path to the goal will be found by only having to expand each state at most once (guaranteed by running A* with an admissible heuristic) and neither $w_1$ nor $w_2$ have any effect.
+
+\section{Results}
+
+% TODO: I need to put a ton of graphs and tables here
 
 
-%\section{Resources Needed}
+\section{Conclusions}
 
-%We will probably need a machine with at least 32 cores for the 75\% goal and a cluster of some number of machines for the distributed version (100\% goal). We will be using MPI for message-passing between computers and C++ to program.
-
-
-%\section{Relevance to the Class}
-
-%We will investigate ways to parallelize SMHA*, and compare its performance to parallelized IMHA*. This project gives us the opportunity to explore classic tradeoffs in designing a distributed system, particularly between network latency and local computation.
+% TODO: Fill me in!
 
 
-%\section{Work Distribution}
 
-%Tasks for 75\% goal:
-%\begin{enumerate}
-%\item Implement IMHA* using locks / shared memory
-%\item Implement SMHA* using locks / shared memory
-%\item Pull problem and heuristics from cited work
-%\item Run algorithms on at least one of the cited example problems
-%\item Evaluate performance overhead of the parallelism
-%\end{enumerate}
+% TODO: Should we have some kind of discussion on whether the parallelized version of SMHA* keeps the w1*w2 optimality guarantees that the single-threaded version does?? Also, maybe part of this, but the longer we go without doing a table update sync-up, the more the algorithm resembles IMHA*. It might be good to point this out somewhere, maybe in the Results/Discussion section
 
-%Tasks for 100\% goal:
-%\begin{enumerate}
-%\item Implement IMHA*/SHMA* using message passing
-%\item Run algorithms on a cluster of machines
-%\item Evaluate performance overhead of local and networked message passing
-%\item Reflect and compare against multicore version
-%\end{enumerate}
 
-%Tasks for 125\% goal:
-%\begin{enumerate}
-%\item Implement new version of SMHA* based on considerations of the evaluation
-%\item Test and evaluate
-%\end{enumerate}
-%\newpage
+
 
 %\section{Final Paper Outline}
 
 %\subsection{Introduction}
-
-%Similar to the above problem statement.
-
 %\subsection{Related Work}
-
-%\cite{Aine14} (MHA*) presents the original multi-heuristic anchored search. \cite{Phillips14} (parallelized A* for slow expansions) presents a criterion for parallel expansion using locks, while retaining the approximate suboptimality guarantees of sequential wA*.
-
 %\subsection{System Description}
-
-%A distributed system running one heuristic on each machine.
-
 %\subsection{Evaluation}
-
-%\textbf{IMHA* experiment:}
-
-%We will implement IMHA* on 32 cores, each running its own heuristic.
-
-%\textbf{SMHA* experiment:}
-
-%We will implement SMHA* on 32 cores, each running its own heuristic and updating shared data structures for path costs.
-
-%We want to keep the approximate optimality guarantees of unparallelized MHA*, so this requires careful maintenance of the data structures to ensure the invariants are kept.
-
-%Explore different way of updating the shared data (i.e. data replication and consistency checking/message-passing?)?
-
-%Performance of the various implementations will be evaluated on the problems from Aine et al.:
-%\begin{enumerate}
-%\item Robot arm manipulation
-%\item 3D path planning (navigation)
-%\item Sliding tile puzzle
-%\end{enumerate}
-
-\subsection{Conclusions and Future Work}
+%\subsection{Conclusions and Future Work}
 
 \bibliographystyle{ieeetr}
 \bibliography{sources}
