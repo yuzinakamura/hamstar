@@ -24,7 +24,7 @@ typedef chrono::high_resolution_clock Clock;
 typedef pair<vector<int>, vector<int> > State;
 
 // compile-time constants
-constexpr int NUM_HEURISTICS = 16;
+constexpr int NUM_HEURISTICS = 4;
 constexpr int MASK_CLOSED = 1;
 constexpr int MASK_CLOSED_ANCHOR = 2;
 constexpr int GRID_ROWS = 5;
@@ -42,6 +42,16 @@ string filename = "test";
 
 // right, up, left, down
 constexpr array<int, NUM_MOVES> moves = { 1, -GRID_COLS, -1, GRID_COLS };
+
+Clock::time_point debug_t1, debug_t2;
+void debug_time(string str) {
+  debug_t1 = debug_t2;
+  debug_t2 = Clock::now();
+  
+  double dt = chrono::duration<double,chrono::seconds::period>(debug_t2-debug_t1).count();
+  if (dt > 0.0001)
+    cout << str << ' ' << dt << endl;
+}
 
 // print a nicely formatted board
 void printState(const State& s) {
@@ -362,7 +372,7 @@ void prepareDistributedSearch() {
 }
 
 void runDistributedSearch() {
-  int benchmark = 100000;
+  int benchmark = 0;
   int flag = 0;
   int error = -1;
 
@@ -372,7 +382,7 @@ void runDistributedSearch() {
   time_elapsed = 0;
   // repeat until some thread declares the search to be finished
   while (finished == -1 && time_elapsed <= TIME_LIMIT) {
-    for (Searcher searcher : vec_search) {
+    for (Searcher& searcher : vec_search) {
       searcher.runSingleIteration();
     }
     // timing

@@ -1,2 +1,1 @@
-apt085.apt.emulab.net slots=16 max_slots=16
-apt101.apt.emulab.net slots=16 max_slots=16
+127.0.0.1 slots=4 max_slots=4
