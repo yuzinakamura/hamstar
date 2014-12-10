@@ -34,7 +34,7 @@ constexpr Cost INFINITE = 1e30;
 //communication constants
 constexpr bool COMM_ITER = true;
 constexpr double COMM_INTERVAL = 0.05;
-constexpr int COMM_FREQ = 1;
+constexpr int COMM_FREQ = 64000;
 constexpr int BUFFER_SIZE = COMM_FREQ*NUM_MOVES*4; //Number of new g values before a message is sent. The actual buffer is double this, because it needs the node too.
 constexpr int DATUM_SIZE = (GRID_ROWS * GRID_COLS)*2 + 1 + 2; //4x4 state, backtrace, mask, g, and h. Assumes Cost is same size as int
 constexpr int HEAD_NODE = 0;
