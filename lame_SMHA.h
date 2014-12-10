@@ -8,9 +8,9 @@ public:
   int mask;
   // g is the cost of a discovered path, h estimates the remaining cost to goal
   Cost g;
-  Cost h[NUM_HEURISTICS];
+  vector<Cost> h;
   // points to the state's location in the priority queue
-  multimap<Cost, State>::const_iterator iter[NUM_HEURISTICS];
+  vector<multimap<Cost, State>::const_iterator> iter;
   // initialization
   StateData() : mask(0), g(INFINITE) {}
 };
