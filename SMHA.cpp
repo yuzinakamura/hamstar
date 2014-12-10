@@ -689,7 +689,7 @@ int main(int argc, char** argv) {
     }
   }
 
-  FILE* fout = fopen(filename + ".csv", "a");
+  FILE* fout = fopen((filename + ".csv").c_str(), "a");
   // we can set it up to loop over multiple problem instances
   for (int i = 0; i < 1/*TRIALS*/; i++) {
     // prepare the Searcher processes
