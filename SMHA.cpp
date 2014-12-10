@@ -231,7 +231,7 @@ public:
   // key for the priority queue
   Cost f(StateData& s_data) { return s_data.g + w1*s_data.h; }
 
-  void insert(State& s, StateData& s_data) {
+  void insert(const State& s, StateData& s_data) {
     // if state is already in open[id], remove it before re-inserting
     if (s_data.iter != open.cend())
       open.erase(s_data.iter);
@@ -239,7 +239,7 @@ public:
     s_data.iter = open.insert(pair<Cost, State>(f(s_data), s));
   }
 
-  void erase(State& s, StateData& s_data) {
+  void erase(const State& s, StateData& s_data) {
     if (s_data.iter != open.cend()) {
       open.erase(s_data.iter);
       s_data.iter = open.cend();
