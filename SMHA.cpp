@@ -212,9 +212,6 @@ public:
   int num_expanded;
   int total_discovered;
   int total_expanded;
-  // id of the Searcher
-  int id;
-  // simulate network communication with message queue and corresponding mutexes
 
   //Communication stuff
   int * head_buffer;
@@ -280,8 +277,8 @@ public:
     // the start state is discovered but not yet expanded
     num_discovered = 1;
     num_expanded = 0;
-	total_discovered = 0;
-	total_expanded = 0;
+    total_discovered = 1;
+    total_expanded = 0;
     start_time = Clock::now();
   }
 
@@ -401,7 +398,7 @@ public:
 
     cout << "Starting run" << endl;
     int iter = 0;
-	Clock::time_point last_time = Clock::now();
+    Clock::time_point last_time = Clock::now();
     // repeat until some thread declares the search to be finished
     while (true) {
 		if (num_expanded > benchmark) {
