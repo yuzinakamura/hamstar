@@ -417,7 +417,7 @@ public:
           opt_bound = max(opt_bound, open.cbegin()->first);
         }
       }
-	  if ((COMM_ITER && iter % 50 == 0) || (!COMM_ITER && iter % 10 == 0 && chrono::duration<double, chrono::seconds::period>(Clock::now() - last_time).count() > COMM_INTERVAL)) {
+	  if ((COMM_ITER && iter % COMM_FREQ == 0) || (!COMM_ITER && iter % 10 == 0 && chrono::duration<double, chrono::seconds::period>(Clock::now() - last_time).count() > COMM_INTERVAL)) {
 		  last_time = Clock::now();
         //cout << "Process " << comm_rank << " preparing to communicate " << endl;
         //Handle communication
@@ -475,7 +475,7 @@ public:
           int index = 0;
           memcpy(&child_buffer[index++], &opt_bound, sizeof(Cost));
           child_buffer[index++] = updated_states.size();
-		  assert(updated_states.size() <= BUFFER_SIZE);
+		  assert(updated_states.size() <= BUFFER_SIZE*comm_size);
 		  child_buffer[index++] = total_discovered;
 		  child_buffer[index++] = total_expanded;
 		  child_buffer[index++] = finished;
