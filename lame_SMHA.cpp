@@ -227,7 +227,6 @@ void Searcher::init() {
     MT = dis(gen2);
     closing_mask = MASK_CLOSED;
   }
-
   num_discovered = 1;
   num_expanded = 0;
 }
@@ -411,10 +410,10 @@ int main(int argc, char** argv) {
 		Cost path_length = data[goal].g;
 		// print solution if it was found
 		if (path_length <= w2 * opt_bound) {
-			for (State& s : vec_search[finished].getSolution()) {
+			/*for (State& s : vec_search[finished].getSolution()) {
 				printState(s);
-			}
-      cout << "Found path of length " << path_length << /*" Discovered nodes = " << searcher.num_discovered << ". Expanded nodes: " << searcher.num_expanded << ". Time: " << */time_elapsed << endl;
+			}*/
+      cout << "Found path of length " << path_length << /*" Discovered nodes = " << searcher.num_discovered << ". Expanded nodes: " << searcher.num_expanded << */". Time: " << time_elapsed << endl;
 		}
 		cout << "Total discovered: " << total_discovered << " total expanded: " << total_expanded << endl;
 
