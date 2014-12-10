@@ -26,13 +26,15 @@ typedef pair<vector<int>, vector<int> > State;
 int SEED = 1;
 constexpr int MASK_CLOSED = 1;
 constexpr int MASK_CLOSED_ANCHOR = 2;
-constexpr int GRID_ROWS = 4;
-constexpr int GRID_COLS = 4;
+constexpr int GRID_ROWS = 5;
+constexpr int GRID_COLS = 5;
 constexpr int NUM_MOVES = 4;
-constexpr double TIME_LIMIT = 60;
+constexpr double TIME_LIMIT = 300;
 constexpr Cost INFINITE = 1e30;
 
 //communication constants
+constexpr bool COMM_ITER = false;
+constexpr double COMM_INTERVAL = 0.1;
 constexpr int COMM_FREQ = 1000;
 constexpr int BUFFER_SIZE = COMM_FREQ*NUM_MOVES*2; //Number of new g values before a message is sent. The actual buffer is double this, because it needs the node too.
 constexpr int DATUM_SIZE = (GRID_ROWS * GRID_COLS)*2 + 1 + 2; //4x4 state, backtrace, mask, g, and h. Assumes Cost is same size as int
@@ -157,8 +159,7 @@ vector<State> getSuccessors(const State& s)
   vector<State> successors;
   // position of the gap or "0-tile"
   int gapPos = s.second[0];
-  for (int i = 0; i < NUM_MOVES; ++i)
-  {
+  for (int i = 0; i < NUM_MOVES; ++i) {
     // neighbor of the gap
     int pos = gapPos + moves[i];
     int pr = gapPos / GRID_COLS + moves[i] / GRID_COLS;
@@ -400,6 +401,7 @@ public:
 
     cout << "Starting run" << endl;
     int iter = 0;
+	Clock::time_point last_time = Clock::now();
     // repeat until some thread declares the search to be finished
     while (true) {
 		if (num_expanded > benchmark) {
@@ -415,7 +417,8 @@ public:
           opt_bound = max(opt_bound, open.cbegin()->first);
         }
       }
-      if (iter % COMM_FREQ == 0) {
+	  if ((COMM_ITER && iter % COMM_FREQ == 0) || (!COMM_ITER && iter % 10 == 0 && chrono::duration<double, chrono::seconds::period>(Clock::now() - last_time).count() > COMM_INTERVAL)) {
+		  last_time = Clock::now();
         //cout << "Process " << comm_rank << " preparing to communicate " << endl;
         //Handle communication
         //First, Gather to HEAD_NODE
