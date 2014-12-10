@@ -682,7 +682,7 @@ int main(int argc, char** argv) {
     }
   }
 
-  FILE* fout = fopen("stats.csv", "w");
+  FILE* fout = fopen("stats.csv", "a");
   // we can set it up to loop over multiple problem instances
   for (int i = 0; i < 1/*TRIALS*/; i++) {
     // prepare the Searcher processes
