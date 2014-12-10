@@ -225,6 +225,7 @@ public:
     Cost hMT = misplacedTiles(s, goal);
     s_data.hAnch = hMD + hLC;
     s_data.h = MD*hMD + LC*hLC + MT*hMT;
+    s_data.iter = open.cend();
   }
 
   // key for the priority queue
@@ -239,8 +240,10 @@ public:
   }
 
   void erase(State& s, StateData& s_data) {
-    open.erase(s_data.iter);
-    s_data.iter = open.cend();
+    if (s_data.iter != open.cend()) {
+      open.erase(s_data.iter);
+      s_data.iter = open.cend();
+    }
   }
 
   // assumes start, goal, w1 and w2 are already set
@@ -269,7 +272,6 @@ public:
     StateData& start_data = data[start];
     start_data.g = 0;
     computeH(start, start_data);
-    start_data.iter = open.cend();
     start_data.bp = start.first;
     insert(start, start_data);
 
@@ -290,7 +292,6 @@ public:
       StateData& t_data = data[t];
       if (t_data.g == INFINITE) {
         computeH(t, t_data);
-        t_data.iter = open.cend();
         num_discovered++;
 		total_discovered++;
       }
@@ -347,11 +348,13 @@ public:
     s_data.mask |= maskNew;
     // if necessary, compute heuristics
     if (s_data.g == INFINITE) {
-      s_data.iter = open.cend();
-      if (comm_rank == HEAD_NODE)
+      if (comm_rank == HEAD_NODE) {
         s_data.h = s_data.hAnch = hAnchNew;
-      else
+        s_data.iter = open.cend();
+      }
+      else {
         computeH(s, s_data);
+      }
     }
     // if necessary, close this state
     if ((s_data.mask & closing_mask) && s_data.iter != open.cend()) {
@@ -512,8 +515,12 @@ public:
       // get a State to expand
       auto it = open.cbegin();
 
+      // timing
+      Clock::time_point cur_time = Clock::now();
+      time_elapsed = chrono::duration<double, chrono::seconds::period>(cur_time - start_time).count();
+
       // search termination condition
-      if (it == open.cend() || data[goal].g <= w2 * opt_bound || time_elapsed > TIME_LIMIT) {
+      if (data[goal].g <= w2 * opt_bound) {
         // flush and kill, but don't kill the master!!!!!
 		  finished = 1;
 		  cout << "Machine " << comm_rank << " found a solution" << endl;
@@ -600,6 +607,12 @@ public:
 				  //updated_states.insert(s);
 			  }
 		  }
+        break;
+      }
+      if (it == open.cend()) {
+        continue;
+      }
+      if (time_elapsed > TIME_LIMIT) {
         break;
       }
       State s = it->second;
@@ -705,9 +718,6 @@ int main(int argc, char** argv) {
 				printState(s);
 			}
 		}*/
-		// timing
-		Clock::time_point cur_time = Clock::now();
-		searcher.time_elapsed = chrono::duration<double, chrono::seconds::period>(cur_time - searcher.start_time).count();
 		cout << "Found path of length " << path_length << " Discovered nodes = " << searcher.num_discovered << ". Expanded nodes: " << searcher.num_expanded << ". Time: " << searcher.time_elapsed << endl;
 		cout << "Total discovered: " << searcher.total_discovered << " total expanded: " << searcher.total_expanded << endl;
 		fprintf(fout, "%f %f %f %d %f\n", searcher.w1, searcher.w2, searcher.time_elapsed, searcher.num_expanded, path_length);
