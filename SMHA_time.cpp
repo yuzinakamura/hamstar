@@ -32,7 +32,7 @@ constexpr double TIME_LIMIT = 300;
 constexpr Cost INFINITE = 1e30;
 
 //communication constants
-constexpr bool COMM_ITER = true;
+constexpr bool COMM_ITER = false;
 constexpr double COMM_INTERVAL = 0.05;
 constexpr int COMM_FREQ = 1000;
 constexpr int BUFFER_SIZE = COMM_FREQ*NUM_MOVES*4; //Number of new g values before a message is sent. The actual buffer is double this, because it needs the node too.
