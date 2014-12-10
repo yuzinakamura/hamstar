@@ -24,7 +24,7 @@ typedef chrono::high_resolution_clock Clock;
 typedef pair<vector<int>, vector<int> > State;
 
 // compile-time constants
-constexpr int NUM_HEURISTICS = 8;
+constexpr int NUM_HEURISTICS = 16;
 constexpr int MASK_CLOSED = 1;
 constexpr int MASK_CLOSED_ANCHOR = 2;
 constexpr int GRID_ROWS = 5;
