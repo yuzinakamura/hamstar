@@ -1,0 +1,18 @@
+@inproceedings{Aine14,
+  title={Multi-Heuristic {A}*},
+  author={Aine, Sandip and Swaminathan, Siddharth and Narayanan, Venkatraman and Hwang, Victor and Likhachev, Maxim},
+  booktitle={Seventh Annual Symposium on Combinatorial Search},
+  year={2014}
+}
+
+
+@paper{Phillips14,
+	author = {Mike Phillips and Maxim Likhachev and Sven Koenig},
+	title = {{PA*SE}: Parallel {A}* for Slow Expansions},
+	conference = {International Conference on Automated Planning and Scheduling},
+	year = {2014},
+	keywords = {Heuristic search; weighted A*; parallel algorithms},
+	abstract = {Planners need to become faster as we seek to tackle increasingly complicated problems. Much of the recent improvements in computer speed is due to multi-core processors. For planners to take advantage of these types of architectures, we must adapt algorithms for parallel processing. There are a number of planning domains where state expansions are slow. One example is robot motion planning, where most of the time is devoted to collision checking. In this work, we present PA*SE, a novel, parallel version of A* (and weighted A*) which parallelizes state expansions by taking advantage of this property. While getting close to a linear speedup in the number of cores, we still preserve completeness and optimality of A* (bounded sub-optimality of weighted A*). PA*SE applies to any planning problem in which significant time is spent on generating successor states and computing transition costs. We present experimental results on a robot navigation domain (x,y,heading) which requires expensive 3D collision checking for the PR2 robot. We also provide an in-depth analysis of the algorithm’s performance on a 2D navigation problem as we vary the number of cores (up to 32) as well as the time it takes to collision check successors during state expansions.},
+
+	url = {http://www.aaai.org/ocs/index.php/ICAPS/ICAPS14/paper/view/7952}
+}
