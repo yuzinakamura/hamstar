@@ -288,12 +288,14 @@ public:
     assert(!(s_data.mask & closing_mask));
     s_data.mask |= MASK_CLOSED | closing_mask;
 
+    erase(s, s_data);
+
     for (State& t : getSuccessors(s)) {
       StateData& t_data = data[t];
       if (t_data.g == INFINITE) {
         computeH(t, t_data);
         num_discovered++;
-		total_discovered++;
+        total_discovered++;
       }
 
       // critical section for updating g-value and inserting
@@ -617,9 +619,8 @@ public:
       }
       State s = it->second;
       StateData& s_data = data[s];
-      erase(s, s_data);
       num_expanded++;
-	  total_expanded++;
+      total_expanded++;
       expand(s, s_data);
 
       iter++;
@@ -713,12 +714,12 @@ int main(int argc, char** argv) {
 	if (comm_rank == HEAD_NODE) {
 		Cost path_length = searcher.data[searcher.goal].g;
 		// print solution if it was found
-		/*if (path_length <= searcher.w2 * searcher.opt_bound) {
-			for (State& s : searcher.getSolution()) {
+		if (path_length <= searcher.w2 * searcher.opt_bound) {
+			/*for (State& s : searcher.getSolution()) {
 				printState(s);
-			}
-		}*/
-		cout << "Found path of length " << path_length << " Discovered nodes = " << searcher.num_discovered << ". Expanded nodes: " << searcher.num_expanded << ". Time: " << searcher.time_elapsed << endl;
+			}*/
+      cout << "Found path of length " << path_length << " Discovered nodes = " << searcher.num_discovered << ". Expanded nodes: " << searcher.num_expanded << ". Time: " << searcher.time_elapsed << endl;
+		}
 		cout << "Total discovered: " << searcher.total_discovered << " total expanded: " << searcher.total_expanded << endl;
 		fprintf(fout, "%f %f %f %d %f\n", searcher.w1, searcher.w2, searcher.time_elapsed, searcher.num_expanded, path_length);
 	}

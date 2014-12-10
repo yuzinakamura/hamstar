@@ -265,6 +265,14 @@ void Searcher::expand(const State& s, StateData& s_data) {
 }
 
 void Searcher::runSingleIteration() {
+  if (comm_rank == HEAD_NODE) {
+    if (open.empty()) {
+      opt_bound = INFINITE;
+    }
+    else {
+      opt_bound = max(opt_bound, open.cbegin()->first);
+    }
+  }
   // get a State to expand
   auto it = open.cbegin();
 
@@ -279,7 +287,6 @@ void Searcher::runSingleIteration() {
 
   State s = it->second;
   StateData& s_data = data[s];
-  erase(s, s_data);
   num_expanded++;
   total_expanded++;
   expand(s, s_data);
@@ -333,11 +340,6 @@ void prepareDistributedSearch() {
 
   // initialize global data structures
   data.clear();
-  // create data entry for start state
-  StateData& start_data = data[start];
-  start_data.g = 0;
-  computeH(start, start_data);
-  start_data.bp = start.first;
   opt_bound = 0;
   // the start state is discovered but not yet expanded
   total_discovered = 1;
@@ -345,6 +347,12 @@ void prepareDistributedSearch() {
 
   vec_search.clear();
   vec_search.resize(NUM_HEURISTICS);
+  // create data entry for start state
+  StateData& start_data = data[start];
+  start_data.g = 0;
+  computeH(start, start_data);
+  start_data.bp = start.first;
+
   for (int i = 0; i < NUM_HEURISTICS; ++i) {
     vec_search[i].comm_rank = i;
     vec_search[i].open.clear();
@@ -372,6 +380,10 @@ void runDistributedSearch() {
     Clock::time_point cur_time = Clock::now();
     time_elapsed = chrono::duration<double,chrono::seconds::period>(cur_time-start_time).count();
     iter++;
+    if (total_expanded > benchmark) {
+      benchmark += 100000;
+      cout << "Total expanded " << total_expanded << endl;
+    }
   }
 }
 
@@ -402,8 +414,8 @@ int main(int argc, char** argv) {
 			for (State& s : vec_search[finished].getSolution()) {
 				printState(s);
 			}
+      cout << "Found path of length " << path_length << /*" Discovered nodes = " << searcher.num_discovered << ". Expanded nodes: " << searcher.num_expanded << ". Time: " << */time_elapsed << endl;
 		}
-		cout << "Found path of length " << path_length << /*" Discovered nodes = " << searcher.num_discovered << ". Expanded nodes: " << searcher.num_expanded << ". Time: " << time_elapsed <<*/ endl;
 		cout << "Total discovered: " << total_discovered << " total expanded: " << total_expanded << endl;
 
     // report stats
