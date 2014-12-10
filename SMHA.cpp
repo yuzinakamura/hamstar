@@ -1,3 +1,4 @@
+// TODO: replace final broadcast - just send a normal message back to anchor
 #include <array>
 #include <cmath>
 #include <thread>
@@ -47,6 +48,16 @@ string filename = "test";
 
 // right, up, left, down
 constexpr array<int, NUM_MOVES> moves = { 1, -GRID_COLS, -1, GRID_COLS };
+
+Clock::time_point debug_t1, debug_t2;
+void debug_time(string str) {
+  debug_t1 = debug_t2;
+  debug_t2 = Clock::now();
+  
+  double dt = chrono::duration<double,chrono::seconds::period>(debug_t2-debug_t1).count();
+  if (dt > 0.0001)
+    cout << str << ' ' << dt << endl;
+}
 
 // print a nicely formatted board
 void printState(const State& s) {
@@ -395,7 +406,7 @@ public:
   }
 
   void run() {
-	  int benchmark = 100000;
+	  int benchmark = 0;
     int flag = 0;
     MPI_Status status;
     MPI_Request request;
@@ -721,7 +732,8 @@ int main(int argc, char** argv) {
       cout << "Found path of length " << path_length << " Discovered nodes = " << searcher.num_discovered << ". Expanded nodes: " << searcher.num_expanded << ". Time: " << searcher.time_elapsed << endl;
 		}
 		cout << "Total discovered: " << searcher.total_discovered << " total expanded: " << searcher.total_expanded << endl;
-		fprintf(fout, "%f %f %f %d %f\n", searcher.w1, searcher.w2, searcher.time_elapsed, searcher.num_expanded, path_length);
+    fprintf(fout, "%f %f %f %d %f\n", searcher.w1, searcher.w2, searcher.time_elapsed, searcher.total_expanded, path_length);
+		//fprintf(fout, "%f %f %f %d %f\n", searcher.w1, searcher.w2, searcher.time_elapsed, searcher.num_expanded, path_length);
 	}
   }
   fclose(fout);

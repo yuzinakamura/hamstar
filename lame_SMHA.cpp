@@ -24,7 +24,6 @@ typedef chrono::high_resolution_clock Clock;
 typedef pair<vector<int>, vector<int> > State;
 
 // compile-time constants
-constexpr int NUM_HEURISTICS = 16;
 constexpr int MASK_CLOSED = 1;
 constexpr int MASK_CLOSED_ANCHOR = 2;
 constexpr int GRID_ROWS = 5;
@@ -38,10 +37,21 @@ constexpr int HEAD_NODE = 0;
 
 static int finished = -1;
 int SEED = 1;
+int NUM_HEURISTICS = 1;
 string filename = "test";
 
 // right, up, left, down
 constexpr array<int, NUM_MOVES> moves = { 1, -GRID_COLS, -1, GRID_COLS };
+
+Clock::time_point debug_t1, debug_t2;
+void debug_time(string str) {
+  debug_t1 = debug_t2;
+  debug_t2 = Clock::now();
+  
+  double dt = chrono::duration<double,chrono::seconds::period>(debug_t2-debug_t1).count();
+  if (dt > 0.0001)
+    cout << str << ' ' << dt << endl;
+}
 
 // print a nicely formatted board
 void printState(const State& s) {
@@ -188,8 +198,8 @@ void computeH(const State& s, StateData& s_data) {
   Cost hLC = linearConflicts(s, goal);
   Cost hMT = misplacedTiles(s, goal);
   for (int i = 0; i < NUM_HEURISTICS; ++i) {
-    s_data.h[i] = vec_search[i].MD*hMD + vec_search[i].LC*hLC + vec_search[i].MT*hMT;
-    s_data.iter[i] = vec_search[i].open.cend();
+    s_data.h.push_back(vec_search[i].MD*hMD + vec_search[i].LC*hLC + vec_search[i].MT*hMT);
+    s_data.iter.push_back(vec_search[i].open.cend());
   }
 }
 
@@ -362,7 +372,7 @@ void prepareDistributedSearch() {
 }
 
 void runDistributedSearch() {
-  int benchmark = 100000;
+  int benchmark = 0;
   int flag = 0;
   int error = -1;
 
@@ -372,7 +382,7 @@ void runDistributedSearch() {
   time_elapsed = 0;
   // repeat until some thread declares the search to be finished
   while (finished == -1 && time_elapsed <= TIME_LIMIT) {
-    for (Searcher searcher : vec_search) {
+    for (Searcher& searcher : vec_search) {
       searcher.runSingleIteration();
     }
     // timing
@@ -396,6 +406,9 @@ int main(int argc, char** argv) {
     if (arg == "-filename" || arg == "-f") {
       filename = argv[++i];
     }
+    if (arg == "-numh" || arg == "-n") {
+      NUM_HEURISTICS = atoi(argv[++i]);
+    }
   }
 
   FILE* fout = fopen((filename + ".csv").c_str(), "a");
@@ -418,9 +431,9 @@ int main(int argc, char** argv) {
 		cout << "Total discovered: " << total_discovered << " total expanded: " << total_expanded << endl;
 
     // report stats
-    /*printf("map %d: Path Length=%f Visited Nodes=%d Explored Nodes=%d Planning Time=%f\n", i, path_length, searcher.num_discovered, searcher.num_expanded, time_elapsed);
-    fprintf(fout, "%f %f %f %d %f\n", w1, w2, time_elapsed, searcher.num_expanded, path_length);
-	cout << "Rank " << comm_rank << " Total discovered: " << total_discovered << " total expanded: " << total_expanded << endl;*/
+    //printf("map %d: Path Length=%f Visited Nodes=%d Explored Nodes=%d Planning Time=%f\n", i, path_length, searcher.num_discovered, searcher.num_expanded, time_elapsed);
+    fprintf(fout, "%f %f %f %d %f\n", w1, w2, time_elapsed, total_expanded, path_length);
+	//cout << "Rank " << comm_rank << " Total discovered: " << total_discovered << " total expanded: " << total_expanded << endl;
   }
   fclose(fout);
 }
