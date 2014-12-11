@@ -8,12 +8,12 @@
 \usepackage{caption}
 \usepackage{subcaption}
 
-\titleformat{\section}{\normalsize\bf}{\thesection \hspace{5pt}}{0em}{}
-\titleformat{\subsection}{\normalsize\bf}{\thesubsection \hspace{5pt}}{0em}{}
+%\titleformat{\section}{\normalsize\bf}{\thesection \hspace{5pt}}{0em}{}
+%\titleformat{\subsection}{\normalsize\bf}{\thesubsection \hspace{5pt}}{0em}{}
 
 \begin{document}
 
-\centerline{\large{\textbf{Distributed Multi-Heuristic A* (HAMSTAR)}}}
+\centerline{\Large{\textbf{Distributed Multi-Heuristic A* (HAMSTAR)}}}
 \centerline{Noam Brown, Aram Ebtekar, Yuzuko Nakamura}
 \centerline{15-712 Fall 2014 Final Project Report}
 
@@ -58,19 +58,17 @@ Our algorithm is based off of the single-threaded, round-robin SMHA* code presen
 
 \subsection{Design Decisions}
 
-\textbf{Interprocess communication with MPI}
+\subsubsection*{Interprocess communication with MPI}
 
 We investigated other frameworks designed for iterative algorithms on a stable dataset such as Spark and GraphLab. However, most of these frameworks were designed for chunking up a large dataset upon which a single operation is performed. Our application's needs differed from this model in that the dataset being operated on (the graph being explored) was shared by all workers, and the workers themselves were performing differing operations on subsets of the same data.
 
 In the case where the working set of data is small enough to be contained within each process, the system is much less complex, and the services provided by Spark and GraphLab are not so crucial. For these reasons we instead decided to distribute our code using MPI.
 
-\textbf{Synchronous broadcast vs. asynchronous sync-ups}
+\subsubsection*{Synchronous broadcast vs. asynchronous sync-ups}
 
 % TODO: Fill me in! MPI-specific feature...
 
-\textbf{Update collation performed at anchor node}
-
-\textbf{Update collation performed at anchor node}
+\subsubsection*{Update collation performed at anchor node}
 
 SMHA* needs to share the values of $g$ (distance estimates) and $bp$ (back-pointers) for every state. As sharing memory is infeasible in our distributed implementation, processes periodically broadcast their $g$ and $bp$ values to update one another. This can result in conflicting data for a particular state, which is always resolved by taking the data which gives the lowest $g$ value for that state as it contains the best estimate found so far. During conflict resolution, we also take the inclusive OR of the flags specifying whether the state has ever been expanded by the anchor, or by any machine at all.
 
@@ -78,9 +76,11 @@ Each broadcast by a heuristic machine only needs to contain the portion of the g
 
 The disadvantage is that we rely heavily on the anchor machine functioning reliably. This is a small price to pay, given that the anchor is already necessary for updating the optimality bound. To avoid unduly burdening the anchor, every machine is able to compute the anchor heuristic and includes its value in the state updates it sends to the anchor machine.
 
-\textbf{Back-pointer optimization}
+\subsubsection*{Back-pointer optimization}
 
-$bp(s)$ is a pointer to the parent of $s$ along the optimal path found so far from the start to $s$. It is not needed to perform the search and compute a conservative distance to the goal; it is only used to reconstruct the path once the search terminates.
+$bp(s)$ represents the parent of $s$ along the optimal path found so far from the start to $s$. As a single pointer cannot be shared across a distributed replicated data structure, our first implementation used a full state representation (5x5 sliding tile puzzle) in place of $bp(s)$, nearly doubling the length of network messages. However, notice that $bp(s)$ is not needed to perform the search and compute $g$-values; it is only needed to reconstruct the solution path once the search terminates.
+
+Therefore, it suffices to use pointers referring to the machine's local entry for that state. These pointers need not be communicated until the search terminates. At that point, the path can be obtained by walking backwards from the goal. At each step, we move from the current state $s$ to the neighbor $s'$ which minimizes $g(s') + c(s',s)$ among the possible parents $s'=bp(s)$ pooled from all machines. Although we still end up sending full state representations, these are only for the parents of states along the path.
 
 
 \section{Experimental Setup}

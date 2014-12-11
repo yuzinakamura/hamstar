@@ -2,8 +2,8 @@
 
 #set eps, sweep time
 #4 16 32
-mpic++ -std=c++0x -o SMHA SMHA.cpp
-g++ -std=c++0x -o lame_SMHA lame_SMHA.cpp
+mpic++ -std=c++0x -O3 -o SMHA SMHA.cpp
+g++ -std=c++0x -O3 -o lame_SMHA lame_SMHA.cpp
 
 
 for SEED in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
