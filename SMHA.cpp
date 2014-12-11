@@ -26,8 +26,8 @@ typedef pair<vector<int>, vector<int> > State;
 // compile-time constants
 constexpr int MASK_CLOSED = 1;
 constexpr int MASK_CLOSED_ANCHOR = 2;
-constexpr int GRID_ROWS = 5;
-constexpr int GRID_COLS = 5;
+constexpr int GRID_ROWS = 4;
+constexpr int GRID_COLS = 4;
 constexpr int NUM_MOVES = 4;
 constexpr double TIME_LIMIT = 300;
 constexpr Cost INFINITE = 1e30;
@@ -35,7 +35,7 @@ constexpr Cost INFINITE = 1e30;
 //communication constants
 constexpr bool COMM_ITER = true;
 constexpr double COMM_INTERVAL = 0.05;
-constexpr int COMM_FREQ = 1000;
+constexpr int COMM_FREQ = 100000;
 constexpr int BUFFER_SIZE = COMM_FREQ*NUM_MOVES*4; //Number of new g values before a message is sent. The actual buffer is double this, because it needs the node too.
 constexpr int DATUM_SIZE = (GRID_ROWS * GRID_COLS)*2 + 1 + 2; //4x4 state, backtrace, mask, g, and h. Assumes Cost is same size as int
 constexpr int HEAD_NODE = 0;
@@ -656,8 +656,8 @@ public:
 Searcher searcher;
 
 void prepareDistributedSearch() {
-  searcher.w1 = 2.0;
-  searcher.w2 = 2.0;
+  searcher.w1 = 1.0;
+  searcher.w2 = 1.0;
   // make the standard orderly goal state
   for (int i = 1; i < GRID_ROWS*GRID_COLS; i++) {
     searcher.goal.first.push_back(i);
