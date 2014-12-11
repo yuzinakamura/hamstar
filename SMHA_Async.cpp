@@ -34,7 +34,7 @@ constexpr double TIME_LIMIT = 300;
 constexpr Cost INFINITE = 1e30;
 
 //communication constants
-constexpr int COMM_FREQ = 1000;
+constexpr int COMM_FREQ = 5000;
 constexpr int BUFFER_SIZE = COMM_FREQ*NUM_MOVES*10; //Number of new g values before a message is sent. The actual buffer is double this, because it needs the node too.
 constexpr int DATUM_SIZE = (GRID_ROWS * GRID_COLS) + 1 + 2; //4x4 state, backtrace, mask, g, and h. Assumes Cost is same size as int
 constexpr int HEAD_NODE = 0;
@@ -591,6 +591,9 @@ void run() {
       if (data[goal].g <= w2 * opt_bound) {
         // flush and kill, but don't kill the master!!!!!
 		  finished = 1;
+		  Cost path_length = data[goal].g;
+		  FILE* fout = fopen((filename + ".csv").c_str(), "a");
+		  fprintf(fout, "%f %f %f %d %f\n", w1, w2, time_elapsed, total_expanded, path_length);
 		  cout << "Machine " << comm_rank << " found a solution" << endl;
 		  cout << "Time taken: " << time_elapsed << ". Total expanded: " << total_expanded << " Local expanded: " << num_expanded << endl;
 		  cout << "Time commed: " << time_comm << endl;
