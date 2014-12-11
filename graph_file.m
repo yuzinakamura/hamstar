@@ -9,7 +9,7 @@ labSolution = 'Shortest solution';
 
 % EXAMPLE #1 OF HOW TO GRAPH STUFF
 % Change the following if necessary
-filegroup = 'lame';
+filegroup = 'cores';
 xvals = [1, 2, 4, 8, 16];
 xlab = 'Number of nodes/heuristics (one machine)';
 titleRuntime = 'Running time with varying number of nodes';
@@ -32,14 +32,14 @@ print(fig_handle, ['graphs/', filegroup, '_solutionquality.png'], '-dpng', '-r0'
 % EXAMPLE #2 OF HOW TO GRAPH STUFF
 % Change the following if necessary
 filegroup1 = 'lame';
-filegroup2 = 'cool';
+filegroup2 = 'cores';
 xvals = [1, 2, 4, 8, 16];
 xlab = 'Number of nodes/heuristics (one machine)';
-titleRuntime = 'Running time with varying number of nodes';
-titleExpansions = 'States expanded with varying number of nodes';
-titleSolution = 'Solution length with varying number of nodes';
-legendlab1 = 'Lame SMHA*';
-legendlab2 = 'Cool SMHA*';
+titleRuntime = 'Running time with varying number of heuristics';
+titleExpansions = 'States expanded with varying number of heuristics';
+titleSolution = 'Solution length with varying number of heuristics';
+legendlab1 = 'Sequential';
+legendlab2 = 'Multi-core';
 
 % Do not need to change the following (I think)
 [runtime1, expansions1, solution1, error_r1, error_e1, error_s1] = get_data(filegroup1, xvals);
@@ -105,11 +105,11 @@ for i = 1:numfiles
   s_sort = sort(M(:, 5));
 
   runtime(i) = mean(r_sort(2:end-1)); % average values over trials and store
-  error_r(:,i) = [r_sort(1); r_sort(end)]; % save lowest and highest for error bars
+  error_r(:,i) = [r_sort(2); r_sort(end-1)]; % save lowest and highest for error bars
   expansions(i) = mean(e_sort(2:end-1));
-  error_e(:,i) = [e_sort(1); e_sort(end)];
+  error_e(:,i) = [e_sort(2); e_sort(end-1)];
   solution(i) = mean(s_sort(2:end-1));
-  error_s(:,i) = [s_sort(1); s_sort(end)];
+  error_s(:,i) = [s_sort(2); s_sort(end-1)];
 end
 
 end

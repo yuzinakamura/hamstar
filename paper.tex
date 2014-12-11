@@ -85,15 +85,13 @@ Therefore, it suffices to use pointers referring to the machine's local entry fo
 
 \section{Experimental Setup}
 
-We tested our algorithm on a set of four random sliding tile puzzles of size 5x5, averaging the results of each trial into a single result. The data we collected were (1) running time, (2) number of states in the problem graph that were expanded during the course of searching for a solution, and (3) the length in steps of the best solution at termination.
-
-%TODO: ^ Explain how the states expanded node is calculated? Maybe as a footnote?
+We tested our algorithm on the 24-puzzle, a 5x5 grid of sliding blocks which must be rearranged to achieve a standard goal configuration, somewhat akin to solving a Rubix cube. Uniformly at random, we generated ten starting configurations among the over $3\times 10^{23}$ states of the puzzle. The data we collected were (1) running time, (2) total number of states in the problem graph that were expanded across all processes during the search, and (3) the length in steps of the best solution at termination. Our main evaluation criterion is the time to complete the search with the required suboptimality guarantee, which we fix to $w_1 w_2 = 4$.
 
 % TODO: Apt? Machine specs?
 
 % TODO: Talk about what we varied for the tests. Frequency of communication, effect of adding more heuristics, effect of adding more machines (maybe we want a graph that compares the effect of adding more heuristics on the same machine vs. adding more heuristics by using more machines), and comparison to single thread/round robing running time
 
-In MHA*, two weights are specified. The first weight ($w_1$) determines how much priority to give heuristic expansions over the anchor search. A higher $w_1$ results in more depth-first-search-like behavior. The second weight ($w_2$) determines how close to the current known minimum path length a path to the goal must be before being selected as a solution. MHA* gives a guarantee that the solution found at termination is at most $w_1 * w_2$ times the optimum value. For all experiments, we used $w_1$, $w_2 = 2$. Note that when there is only one heuristic in a test (the admissible heuristic), the optimal shortest path to the goal will be found by only having to expand each state at most once (guaranteed by running A* with an admissible heuristic) and neither $w_1$ nor $w_2$ have any effect.
+SMHA* specifies two weight parameters. The first weight ($w_1$) gives the search a more depth-first goal-directed focus. The second weight ($w_2$) determines the margin by which a proposed solution's cost may exceed the anchor's minimum frontier key value, which is itself $w1$ times a lower bound on the optimum solution cost. Therefore, SMHA* guarantees that the solution found at termination is at most $w_1 w_2$ times the optimum value. For all experiments, we used $w_1 = w_2 = 2$. Every state expanded by the anchor has a $g$ value which is optimal to within a factor of $w_1$.
 
 \section{Results}
 
