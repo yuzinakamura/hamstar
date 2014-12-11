@@ -27,8 +27,8 @@ typedef pair<vector<int>, vector<int> > State;
 // compile-time constants
 constexpr int MASK_CLOSED = 1;
 constexpr int MASK_CLOSED_ANCHOR = 2;
-constexpr int GRID_ROWS = 4;
-constexpr int GRID_COLS = 4;
+constexpr int GRID_ROWS = 5;
+constexpr int GRID_COLS = 5;
 constexpr int NUM_MOVES = 4;
 constexpr double TIME_LIMIT = 300;
 constexpr Cost INFINITE = 1e30;
@@ -705,8 +705,8 @@ public:
 Searcher searcher;
 
 void prepareDistributedSearch() {
-  searcher.w1 = 1.0;
-  searcher.w2 = 1.0;
+  searcher.w1 = 2.0;
+  searcher.w2 = 2.0;
   // make the standard orderly goal state
   for (int i = 1; i < GRID_ROWS*GRID_COLS; i++) {
     searcher.goal.first.push_back(i);

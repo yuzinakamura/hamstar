@@ -45,7 +45,7 @@ Our work is directly based on Aine et al.'s original multi-heuristic A* search \
 \label{fig:sysdiag}
 \end{figure}
 
-An overview of our system is in Figure \ref{fig:sysdiag}. The main (anchor) machine starts up other heuristic machines. Each machine runs its own heuristic, with the anchor machine's being the admissible heuristic. Each of the non-anchor heuristic machines periodically send updates of the data structures (tables containing shortest path information found so far) to the anchor machine, which compares the data it receives and sends out table updates of the best paths known so far to all other nodes.
+An overview of our system is in Figure \ref{fig:sysdiag}. The main (anchor) machine starts up other heuristic machines. Each machine runs its own heuristic, with the anchor machine's being the admissible heuristic. Each of the non-anchor heuristic machines periodically sends updates of the data structures (tables containing shortest path information found so far) to the anchor machine, which compares the data it receives and sends out table updates of the best paths known so far to all other nodes.
 
 \begin{figure}
 \centering \includegraphics[width=3in]{pseudocode}
@@ -70,13 +70,17 @@ In the case where the working set of data is small enough to be contained within
 
 \textbf{Update collation performed at anchor node}
 
-In our system, updates are sent from heuristic machines to the anchor machine, which collects these updates and combines them into a smaller set of table updates. For example, if two heuristic machines both send new shortest path values for the same state, the anchor machine receives both and at a later time sends out an update on the shortest path to that state that is the minimum of values it received. All nodes then update their data structures with this new information. 
-% TODO: ^ Is this right?
+\textbf{Update collation performed at anchor node}
 
-One alternative to this method of communicating updates would be to have each node periodically broadcast its table updates to all other nodes and each node would incorporate those updates in its own table. This requires many more messages to go over the network and work to be duplicated. However, in the case where the anchor node is overloaded or has a possibility of going down, this alternative would be more appealing. We didn't consider this to be within the scope of this project, however, so we only implemented a system of update collation at the anchor machine. However, this may be interesting to investigate in the future.
-%TODO: Maybe justfiy or link with any result that indicates that the anchor node's workload becomes a bottleneck (or doesn't)
+SMHA* needs to share the values of $g$ (distance estimates) and $bp$ (back-pointers) for every state. As sharing memory is infeasible in our distributed implementation, processes periodically broadcast their $g$ and $bp$ values to update one another. This can result in conflicting data for a particular state, which is always resolved by taking the data which gives the lowest $g$ value for that state as it contains the best estimate found so far. During conflict resolution, we also take the inclusive OR of the flags specifying whether the state has ever been expanded by the anchor, or by any machine at all.
 
+Each broadcast by a heuristic machine only needs to contain the portion of the graph which has been updated by the machine since its most recent network communication. Nonetheless, if every machine broadcasts its updates directly to all other machines, the network would flood with messages and much conflict-resolution work would be duplicated. Therefore, we have every machine send its table updates exclusively to the anchor machine. The anchor alone takes the burden of resolving all conflicts between duplicate states, and then periodically broadcasts the merged collection of updates to all machines.
 
+The disadvantage is that we rely heavily on the anchor machine functioning reliably. This is a small price to pay, given that the anchor is already necessary for updating the optimality bound. To avoid unduly burdening the anchor, every machine is able to compute the anchor heuristic and includes its value in the state updates it sends to the anchor machine.
+
+\textbf{Back-pointer optimization}
+
+$bp(s)$ is a pointer to the parent of $s$ along the optimal path found so far from the start to $s$. It is not needed to perform the search and compute a conservative distance to the goal; it is only used to reconstruct the path once the search terminates.
 
 
 \section{Experimental Setup}
