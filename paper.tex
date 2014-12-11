@@ -1,4 +1,4 @@
-\documentclass{article}
+\documentclass[11pt]{article}
 
 \usepackage{fullpage}
 \usepackage{titlesec}
@@ -17,9 +17,7 @@
 \centerline{Noam Brown, Aram Ebtekar, Yuzuko Nakamura}
 \centerline{15-712 Fall 2014 Final Project Report}
 
-\section{Abstract}
-
-A* is a popular graph search algorithm used in many artificial intelligence applications. The original A* algorithm makes use of a single heuristic to prioritize exploration through a graph, but a variation on the algorithm known as multi-heuristic A* (MHA*) makes use of multiple heuristics to more quickly arrive at approximate solutions. For this project we implemented a distributed version of MHA*, with one process per heuristic. We show... [performance]
+\abstract{A* is a popular graph search algorithm used in many artificial intelligence applications. The original A* algorithm makes use of a single heuristic to prioritize exploration through a graph, but a variation on the algorithm known as multi-heuristic A* (MHA*) makes use of multiple heuristics to more quickly arrive at approximate solutions. For this project we implemented a distributed version of MHA*, with one process per heuristic. We show... [performance]}
 %TODO: Highlight important results
 
 \section{Introduction}
@@ -92,7 +90,7 @@ Therefore, it suffices to use pointers referring to the machine's local entry fo
 
 We tested our algorithm on the 24-puzzle, a 5x5 grid of sliding blocks which must be rearranged to achieve a standard goal configuration, somewhat akin to solving a Rubix cube. Uniformly at random, we generated ten starting configurations among the over $3\times 10^{23}$ states of the puzzle. The data we collected were (1) running time, (2) total number of states in the problem graph that were expanded across all processes during the search, and (3) the length in steps of the best solution at termination. Our main evaluation criterion is the time to complete the search with the required suboptimality guarantee, which we fix to $w_1 w_2 = 4$.
 
-The anchor heuristic is $h(s) = MD(s) + LC(s)$ where $MD(s)$ is the sum of Manhattan distances of each non-blank tile to its destination, and $LC(s)$ is the linear conflicts heuristic which essentially adds 2 for each pair of horizontally or vertically aligned times which need to pass each other. This heuristic is admissible and monotone. Additional heuristics are generated randomly from $MT$, $LC$, and the misplaced tiles heuristic $MT$ which simply counts the number of non-blank tiles which are not already at their destinations. We randomly generate a triple of coefficients, each between 1 and 5, to form a linear combination of these heuristics. We repeat this process as many times as we require non-anchor heuristics. These heuristics are not at all admissible, and their high values give the search a goal-directed focus while the anchor is underestimating the true distance by a large margin.
+The anchor heuristic is $h(s) = MD(s) + LC(s)$ where $MD(s)$ is the sum of Manhattan distances of each non-blank tile to its destination, and $LC(s)$ is the linear conflicts heuristic which essentially adds 2 for each pair of horizontally or vertically aligned times which need to pass each other. This heuristic is admissible and monotone. Additional heuristics are generated randomly from $MD$, $LC$, and the misplaced tiles heuristic $MT$ which simply counts the number of non-blank tiles which are not already at their destinations. We randomly generate a triple of coefficients, each between 1 and 5, to form a linear combination of these heuristics. We repeat this process as many times as we require non-anchor heuristics. These heuristics are not at all admissible, and their high values give the search a goal-directed focus while the anchor is underestimating the true distance by a large margin.
 
 % TODO: Apt? Machine specs?
 
