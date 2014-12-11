@@ -1,0 +1,280 @@
+This is pdfTeX, Version 3.1415926-2.5-1.40.14 (MiKTeX 2.9) (preloaded format=pdflatex 2014.12.6)  10 DEC 2014 23:24
+entering extended mode
+**C:/Users/Noam/Documents/GitHub/hamstar/paper.tex
+(C:/Users/Noam/Documents/GitHub/hamstar/paper.tex
+LaTeX2e <2011/06/27>
+Babel <v3.8m> and hyphenation patterns for english, afrikaans, ancientgreek, ar
+abic, armenian, assamese, basque, bengali, bokmal, bulgarian, catalan, coptic, 
+croatian, czech, danish, dutch, esperanto, estonian, farsi, finnish, french, ga
+lician, german, german-x-2013-05-26, greek, gujarati, hindi, hungarian, iceland
+ic, indonesian, interlingua, irish, italian, kannada, kurmanji, latin, latvian,
+ lithuanian, malayalam, marathi, mongolian, mongolianlmc, monogreek, ngerman, n
+german-x-2013-05-26, nynorsk, oriya, panjabi, pinyin, polish, portuguese, roman
+ian, russian, sanskrit, serbian, slovak, slovenian, spanish, swedish, swissgerm
+an, tamil, telugu, turkish, turkmen, ukenglish, ukrainian, uppersorbian, usengl
+ishmax, welsh, loaded.
+("C:\Program Files (x86)\MiKTeX 2.9\tex\latex\base\article.cls"
+Document Class: article 2007/10/19 v1.4h Standard LaTeX document class
+("C:\Program Files (x86)\MiKTeX 2.9\tex\latex\base\size10.clo"
+File: size10.clo 2007/10/19 v1.4h Standard LaTeX file (size option)
+)
+\c@part=\count79
+\c@section=\count80
+\c@subsection=\count81
+\c@subsubsection=\count82
+\c@paragraph=\count83
+\c@subparagraph=\count84
+\c@figure=\count85
+\c@table=\count86
+\abovecaptionskip=\skip41
+\belowcaptionskip=\skip42
+\bibindent=\dimen102
+)
+(C:\Users\Noam\AppData\Roaming\MiKTeX\2.9\tex\latex\preprint\fullpage.sty
+Package: fullpage 1999/02/23 1.1 (PWD)
+\FP@margin=\skip43
+)
+(C:\Users\Noam\AppData\Roaming\MiKTeX\2.9\tex\latex\titlesec\titlesec.sty
+Package: titlesec 2011/12/15 v2.10.0 Sectioning titles
+\ttl@box=\box26
+\beforetitleunit=\skip44
+\aftertitleunit=\skip45
+\ttl@plus=\dimen103
+\ttl@minus=\dimen104
+\ttl@toksa=\toks14
+\titlewidth=\dimen105
+\titlewidthlast=\dimen106
+\titlewidthfirst=\dimen107
+)
+("C:\Program Files (x86)\MiKTeX 2.9\tex\latex\ltxmisc\parskip.sty"
+Package: parskip 2001/04/09 non-zero parskip adjustments
+)
+("C:\Program Files (x86)\MiKTeX 2.9\tex\latex\graphics\graphicx.sty"
+Package: graphicx 1999/02/16 v1.0f Enhanced LaTeX Graphics (DPC,SPQR)
+
+("C:\Program Files (x86)\MiKTeX 2.9\tex\latex\graphics\keyval.sty"
+Package: keyval 1999/03/16 v1.13 key=value parser (DPC)
+\KV@toks@=\toks15
+)
+("C:\Program Files (x86)\MiKTeX 2.9\tex\latex\graphics\graphics.sty"
+Package: graphics 2009/02/05 v1.0o Standard LaTeX Graphics (DPC,SPQR)
+
+("C:\Program Files (x86)\MiKTeX 2.9\tex\latex\graphics\trig.sty"
+Package: trig 1999/03/16 v1.09 sin cos tan (DPC)
+)
+("C:\Program Files (x86)\MiKTeX 2.9\tex\latex\00miktex\graphics.cfg"
+File: graphics.cfg 2007/01/18 v1.5 graphics configuration of teTeX/TeXLive
+)
+Package graphics Info: Driver file: pdftex.def on input line 91.
+
+("C:\Program Files (x86)\MiKTeX 2.9\tex\latex\pdftex-def\pdftex.def"
+File: pdftex.def 2011/05/27 v0.06d Graphics/color for pdfTeX
+
+("C:\Program Files (x86)\MiKTeX 2.9\tex\generic\oberdiek\infwarerr.sty"
+Package: infwarerr 2010/04/08 v1.3 Providing info/warning/error messages (HO)
+)
+("C:\Program Files (x86)\MiKTeX 2.9\tex\generic\oberdiek\ltxcmds.sty"
+Package: ltxcmds 2011/11/09 v1.22 LaTeX kernel commands for general use (HO)
+)
+\Gread@gobject=\count87
+))
+\Gin@req@height=\dimen108
+\Gin@req@width=\dimen109
+)
+(C:\Users\Noam\AppData\Roaming\MiKTeX\2.9\tex\latex\bold-extra\bold-extra.sty
+Package: bold-extra 2001/11/13 v0.1 Use fonts from cm/mf-extra/bold
+)
+(C:\Users\Noam\AppData\Roaming\MiKTeX\2.9\tex\latex\caption\caption.sty
+Package: caption 2013/05/02 v3.3-89 Customizing captions (AR)
+
+(C:\Users\Noam\AppData\Roaming\MiKTeX\2.9\tex\latex\caption\caption3.sty
+Package: caption3 2013/05/02 v1.6-88 caption3 kernel (AR)
+Package caption3 Info: TeX engine: e-TeX on input line 57.
+\captionmargin=\dimen110
+\captionmargin@=\dimen111
+\captionwidth=\dimen112
+\caption@tempdima=\dimen113
+\caption@indent=\dimen114
+\caption@parindent=\dimen115
+\caption@hangindent=\dimen116
+)
+\c@ContinuedFloat=\count88
+)
+(C:\Users\Noam\AppData\Roaming\MiKTeX\2.9\tex\latex\caption\subcaption.sty
+Package: subcaption 2013/02/03 v1.1-62 Sub-captions (AR)
+\c@subfigure=\count89
+\c@subtable=\count90
+)
+(C:\Users\Noam\Documents\GitHub\hamstar\paper.aux
+
+LaTeX Warning: Label `fig:nummachines_solnqual' multiply defined.
+
+
+LaTeX Warning: Label `sub@fig:nummachines_solnqual' multiply defined.
+
+)
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+ (C:\Users\Noam\AppData\Roaming\MiKTeX\2.9\tex\context\base\supp-pdf.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+\scratchcounter=\count91
+\scratchdimen=\dimen117
+\scratchbox=\box27
+\nofMPsegments=\count92
+\nofMParguments=\count93
+\everyMPshowfont=\toks16
+\MPscratchCnt=\count94
+\MPscratchDim=\dimen118
+\MPnumerator=\count95
+\makeMPintoPDFobject=\count96
+\everyMPtoPDFconversion=\toks17
+)
+Package caption Info: Begin \AtBeginDocument code.
+Package caption Info: End \AtBeginDocument code.
+ [1
+
+{C:/Users/Noam/AppData/Local/MiKTeX/2.9/pdftex/config/pdftex.map}]
+<system-diagram.png, id=8, 834.11626pt x 544.0325pt>
+File: system-diagram.png Graphic file (type png)
+ <use system-diagram.png>
+Package pdftex.def Info: system-diagram.png used on input line 42.
+(pdftex.def)             Requested size: 361.34999pt x 235.68098pt.
+LaTeX Font Info:    Try loading font information for OMS+cmr on input line 44.
+
+("C:\Program Files (x86)\MiKTeX 2.9\tex\latex\base\omscmr.fd"
+File: omscmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
+)
+LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <10> not available
+(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 44.
+
+<pseudocode.png, id=9, 573.14125pt x 688.5725pt>
+File: pseudocode.png Graphic file (type png)
+ <use pseudocode.png>
+Package pdftex.def Info: pseudocode.png used on input line 51.
+(pdftex.def)             Requested size: 216.81pt x 260.47299pt.
+ [2 <C:/Users/Noam/Documents/GitHub/hamstar/system-diagram.png>]
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <7> on input line 73.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <5> on input line 73.
+ [3 <C:/Users/Noam/Documents/GitHub/hamstar/pseudocode.png>]
+<graphs/singlethreadcomp_runningtime.png, id=18, 409.17574pt x 256.13338pt>
+File: graphs/singlethreadcomp_runningtime.png Graphic file (type png)
+
+<use graphs/singlethreadcomp_runningtime.png>
+Package pdftex.def Info: graphs/singlethreadcomp_runningtime.png used on input 
+line 105.
+(pdftex.def)             Requested size: 231.26378pt x 144.76253pt.
+
+<graphs/singlethreadcomp_solutionquality.png, id=19, 412.36412pt x 256.13338pt>
+File: graphs/singlethreadcomp_solutionquality.png Graphic file (type png)
+<use graphs/singlethreadcomp_solutionquality.png>
+Package pdftex.def Info: graphs/singlethreadcomp_solutionquality.png used on in
+put line 110.
+(pdftex.def)             Requested size: 231.26378pt x 143.64476pt.
+
+<graphs/numcores_runningtime.png, id=20, 455.40727pt x 256.13338pt>
+File: graphs/numcores_runningtime.png Graphic file (type png)
+
+<use graphs/numcores_runningtime.png>
+Package pdftex.def Info: graphs/numcores_runningtime.png used on input line 121
+.
+(pdftex.def)             Requested size: 231.26378pt x 130.07132pt.
+
+<graphs/numcores_solutionquality.png, id=21, 455.40727pt x 256.13338pt>
+File: graphs/numcores_solutionquality.png Graphic file (type png)
+
+<use graphs/numcores_solutionquality.png>
+Package pdftex.def Info: graphs/numcores_solutionquality.png used on input line
+ 126.
+(pdftex.def)             Requested size: 231.26378pt x 130.07132pt.
+
+<graphs/nummachines_runningtime.png, id=22, 322.55801pt x 256.13338pt>
+File: graphs/nummachines_runningtime.png Graphic file (type png)
+
+<use graphs/nummachines_runningtime.png>
+Package pdftex.def Info: graphs/nummachines_runningtime.png used on input line 
+137.
+(pdftex.def)             Requested size: 231.26378pt x 183.64204pt.
+
+<graphs/nummachines_solutionquality.png, id=23, 326.2778pt x 256.13338pt>
+File: graphs/nummachines_solutionquality.png Graphic file (type png)
+
+<use graphs/nummachines_solutionquality.png>
+Package pdftex.def Info: graphs/nummachines_solutionquality.png used on input l
+ine 142.
+(pdftex.def)             Requested size: 231.26378pt x 181.55112pt.
+
+<graphs/commfreq_runningtime.png, id=24, 363.47559pt x 256.13338pt>
+File: graphs/commfreq_runningtime.png Graphic file (type png)
+
+<use graphs/commfreq_runningtime.png>
+Package pdftex.def Info: graphs/commfreq_runningtime.png used on input line 153
+.
+(pdftex.def)             Requested size: 144.54pt x 101.85356pt.
+
+<graphs/commfreq_expansions.png, id=25, 362.4128pt x 256.13338pt>
+File: graphs/commfreq_expansions.png Graphic file (type png)
+
+<use graphs/commfreq_expansions.png>
+Package pdftex.def Info: graphs/commfreq_expansions.png used on input line 158.
+
+(pdftex.def)             Requested size: 144.54pt x 102.15059pt.
+
+<graphs/commfreq_solutionquality.png, id=26, 365.06978pt x 256.13338pt>
+File: graphs/commfreq_solutionquality.png Graphic file (type png)
+
+<use graphs/commfreq_solutionquality.png>
+Package pdftex.def Info: graphs/commfreq_solutionquality.png used on input line
+ 163.
+(pdftex.def)             Requested size: 144.54pt x 101.40802pt.
+
+(C:\Users\Noam\Documents\GitHub\hamstar\paper.bbl [4] [5 <C:/Users/Noam/Documen
+ts/GitHub/hamstar/graphs/singlethreadcomp_runningtime.png (PNG copy)> <C:/Users
+/Noam/Documents/GitHub/hamstar/graphs/singlethreadcomp_solutionquality.png (PNG
+ copy)> <C:/Users/Noam/Documents/GitHub/hamstar/graphs/numcores_runningtime.png
+ (PNG copy)> <C:/Users/Noam/Documents/GitHub/hamstar/graphs/numcores_solutionqu
+ality.png (PNG copy)>] [6 <C:/Users/Noam/Documents/GitHub/hamstar/graphs/nummac
+hines_runningtime.png (PNG copy)> <C:/Users/Noam/Documents/GitHub/hamstar/graph
+s/nummachines_solutionquality.png (PNG copy)> <C:/Users/Noam/Documents/GitHub/h
+amstar/graphs/commfreq_runningtime.png (PNG copy)> <C:/Users/Noam/Documents/Git
+Hub/hamstar/graphs/commfreq_expansions.png (PNG copy)> <C:/Users/Noam/Documents
+/GitHub/hamstar/graphs/commfreq_solutionquality.png (PNG copy)>]) [7]
+(C:\Users\Noam\Documents\GitHub\hamstar\paper.aux)
+
+LaTeX Warning: There were multiply-defined labels.
+
+ ) 
+Here is how much of TeX's memory you used:
+ 2635 strings out of 493921
+ 42188 string characters out of 3144879
+ 106407 words of memory out of 3000000
+ 5935 multiletter control sequences out of 15000+200000
+ 5803 words of font info for 21 fonts, out of 3000000 for 9000
+ 841 hyphenation exceptions out of 8191
+ 36i,8n,38p,1244b,435s stack positions out of 5000i,500n,10000p,200000b,50000s
+<C:/Program Files (x86)/MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cmbx10.pfb>
+<C:/Program Files (x86)/MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cmbx12.pfb><C
+:/Program Files (x86)/MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cmmi10.pfb><C:/
+Program Files (x86)/MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cmr10.pfb><C:/Pro
+gram Files (x86)/MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cmr7.pfb><C:/Program
+ Files (x86)/MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cmr9.pfb><C:/Program Fil
+es (x86)/MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:/Program Files
+ (x86)/MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cmsy7.pfb><C:/Program Files (x
+86)/MiKTeX 2.9/fonts/type1/public/amsfonts/cm/cmti10.pfb>
+Output written on paper.pdf (7 pages, 679170 bytes).
+PDF statistics:
+ 73 PDF objects out of 1000 (max. 8388607)
+ 0 named destinations out of 1000 (max. 500000)
+ 56 words of extra memory for PDF output out of 10000 (max. 10000000)
+

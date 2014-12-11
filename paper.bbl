@@ -1,0 +1,13 @@
+\begin{thebibliography}{1}
+
+\bibitem{Aine14}
+S.~Aine, S.~Swaminathan, V.~Narayanan, V.~Hwang, and M.~Likhachev,
+  ``Multi-heuristic {A}*,'' in {\em Seventh Annual Symposium on Combinatorial
+  Search}, 2014.
+
+\bibitem{phillips2014pa}
+M.~Phillips, M.~Likhachev, and S.~Koenig, ``{PA*SE}: Parallel {A*} for slow
+  expansions,'' in {\em International Conference on Automated Planning and
+  Scheduling}, 2014.
+
+\end{thebibliography}
