@@ -92,6 +92,8 @@ Therefore, it suffices to use pointers referring to the machine's local entry fo
 
 We tested our algorithm on the 24-puzzle, a 5x5 grid of sliding blocks which must be rearranged to achieve a standard goal configuration, somewhat akin to solving a Rubix cube. Uniformly at random, we generated ten starting configurations among the over $3\times 10^{23}$ states of the puzzle. The data we collected were (1) running time, (2) total number of states in the problem graph that were expanded across all processes during the search, and (3) the length in steps of the best solution at termination. Our main evaluation criterion is the time to complete the search with the required suboptimality guarantee, which we fix to $w_1 w_2 = 4$.
 
+The anchor heuristic is $h(s) = MD(s) + LC(s)$ where $MD(s)$ is the sum of Manhattan distances of each non-blank tile to its destination, and $LC(s)$ is the linear conflicts heuristic which essentially adds 2 for each pair of horizontally or vertically aligned times which need to pass each other. This heuristic is admissible and monotone. Additional heuristics are generated randomly from $MT$, $LC$, and the misplaced tiles heuristic $MT$ which simply counts the number of non-blank tiles which are not already at their destinations. We randomly generate a triple of coefficients, each between 1 and 5, to form a linear combination of these heuristics. We repeat this process as many times as we require non-anchor heuristics. These heuristics are not at all admissible, and their high values give the search a goal-directed focus while the anchor is underestimating the true distance by a large margin.
+
 % TODO: Apt? Machine specs?
 
 % TODO: Talk about what we varied for the tests. Frequency of communication, effect of adding more heuristics, effect of adding more machines (maybe we want a graph that compares the effect of adding more heuristics on the same machine vs. adding more heuristics by using more machines), and comparison to single thread/round robing running time
@@ -105,12 +107,12 @@ SMHA* specifies two weight parameters. The first weight ($w_1$) gives the search
 \begin{figure}
 \centering
 \begin{subfigure}{3.2in}
-  \includegraphics[width=3.2in]{graphs/singlethreadcomp_runningtime}
+  \includegraphics[width=3.2in]{graphs/figure1}
   \caption{Running time}
   \label{fig:singthread_runtime}
 \end{subfigure}
 \begin{subfigure}{3.2in}
-  \includegraphics[width=3.2in]{graphs/singlethreadcomp_solutionquality}
+  \includegraphics[width=3.2in]{graphs/figure2}
   \caption{Solution length}
   \label{fig:singthread_solnqual}
 \end{subfigure}
@@ -121,7 +123,7 @@ SMHA* specifies two weight parameters. The first weight ($w_1$) gives the search
 \begin{figure}
 \centering
 \begin{subfigure}{3.2in}
-  \includegraphics[width=3.2in]{graphs/numcores_runningtime}
+  \includegraphics[width=3.2in]{graphs/figure3}
   \caption{Running time}
   \label{fig:numcores_runtime}
 \end{subfigure}

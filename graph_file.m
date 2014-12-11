@@ -9,7 +9,7 @@ labSolution = 'Shortest solution';
 
 % EXAMPLE #1 OF HOW TO GRAPH STUFF
 % Change the following if necessary
-filegroup = 'cores';
+filegroup = 'lame';
 xvals = [1, 2, 4, 8, 16];
 xlab = 'Number of nodes/heuristics (one machine)';
 titleRuntime = 'Running time with varying number of nodes';
@@ -32,14 +32,14 @@ print(fig_handle, ['graphs/', filegroup, '_solutionquality.png'], '-dpng', '-r0'
 % EXAMPLE #2 OF HOW TO GRAPH STUFF
 % Change the following if necessary
 filegroup1 = 'lame';
-filegroup2 = 'cores';
+filegroup2 = 'cool';
 xvals = [1, 2, 4, 8, 16];
 xlab = 'Number of nodes/heuristics (one machine)';
-titleRuntime = 'Running time with varying number of heuristics';
-titleExpansions = 'States expanded with varying number of heuristics';
-titleSolution = 'Solution length with varying number of heuristics';
-legendlab1 = 'Sequential';
-legendlab2 = 'Multi-core';
+titleRuntime = 'Running time with varying number of nodes';
+titleExpansions = 'States expanded with varying number of nodes';
+titleSolution = 'Solution length with varying number of nodes';
+legendlab1 = 'Lame SMHA*';
+legendlab2 = 'Cool SMHA*';
 
 % Do not need to change the following (I think)
 [runtime1, expansions1, solution1, error_r1, error_e1, error_s1] = get_data(filegroup1, xvals);
@@ -56,7 +56,8 @@ print(fig_handle, ['graphs/', filegroup1, filegroup2, 'comp_solutionquality.png'
 
 
 
-% FREQUENCY
+
+% EXAMPLE #3 FREQUENCY
 filegroup = 'freq';
 xvals = [100, 200, 400, 800, 1600, 3200, 6400, 12800];
 xlab = 'Number of iterations between sync-ups (4 nodes on 2 machines)';
@@ -73,7 +74,7 @@ fig_handle = graph_with_error_bars(xvals, expansions, error_e, xlab, labExpansio
 print(fig_handle, ['graphs/', filegroup, '_expansions.png'], '-dpng', '-r0');
 fig_handle = graph_with_error_bars(xvals, solution, error_s, xlab, labSolution, true, false, titleSolution);
 print(fig_handle, ['graphs/', filegroup, '_solutionquality.png'], '-dpng', '-r0');
-% /EXAMPLE #1
+% /EXAMPLE #3
 
 
 % MORE EXAMPLES
@@ -105,11 +106,11 @@ for i = 1:numfiles
   s_sort = sort(M(:, 5));
 
   runtime(i) = mean(r_sort(2:end-1)); % average values over trials and store
-  error_r(:,i) = [r_sort(2); r_sort(end-1)]; % save lowest and highest for error bars
+  error_r(:,i) = [r_sort(1); r_sort(end)]; % save lowest and highest for error bars
   expansions(i) = mean(e_sort(2:end-1));
-  error_e(:,i) = [e_sort(2); e_sort(end-1)];
+  error_e(:,i) = [e_sort(1); e_sort(end)];
   solution(i) = mean(s_sort(2:end-1));
-  error_s(:,i) = [s_sort(2); s_sort(end-1)];
+  error_s(:,i) = [s_sort(1); s_sort(end)];
 end
 
 end
