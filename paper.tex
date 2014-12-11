@@ -100,6 +100,7 @@ SMHA* specifies two weight parameters. The first weight ($w_1$) gives the search
 
 \section{Results}
 
+Our first set of experiments shows the performance of our algorithm as we increase the number of processes in the distributed setting. We consider the case of multiple processes on a single multi-core machine, as well as multiple machines each running a single process. For comparison, we also include the performance of the single-threaded SMHA* algorithm that our work is based on. For that algorithm, we show performance as the number of heuristics it uses increases. As shown, performance initially increases significantly, but then drops off as the number of processes increases. Moreover, our distributed algorithm performs comparably to SMHA* in the case where the number of heuristi
 
 
 \begin{figure}
