@@ -34,9 +34,9 @@ constexpr double TIME_LIMIT = 300;
 constexpr Cost INFINITE = 1e30;
 
 //communication constants
-constexpr bool COMM_ITER = true;
+constexpr bool COMM_ITER = false;
 constexpr double COMM_INTERVAL = 0.05;
-constexpr int COMM_FREQ = 1000;
+constexpr int COMM_FREQ = 100000;
 constexpr int BUFFER_SIZE = COMM_FREQ*NUM_MOVES*4; //Number of new g values before a message is sent. The actual buffer is double this, because it needs the node too.
 constexpr int DATUM_SIZE = (GRID_ROWS * GRID_COLS) + 1 + 2; //4x4 state, backtrace, mask, g, and h. Assumes Cost is same size as int
 constexpr int HEAD_NODE = 0;
@@ -534,6 +534,7 @@ public:
         //cout << "Process " << comm_rank << " Sending bcast" << endl;
 		Clock::time_point before_time = Clock::now();
         MPI_Bcast(child_buffer, (BUFFER_SIZE*DATUM_SIZE + 5)*comm_size, MPI_INT, HEAD_NODE, MPI_COMM_WORLD);
+		last_time = Clock::now();
 		time_waiting_bcast += chrono::duration<double, chrono::seconds::period>(Clock::now() - before_time).count();
         //cout << "Process " << comm_rank << " sent bcast " << endl;
         if (comm_rank != HEAD_NODE) {
