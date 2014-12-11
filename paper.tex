@@ -5,6 +5,8 @@
 \usepackage{parskip}
 \usepackage{graphicx}
 \usepackage{bold-extra}
+\usepackage{caption}
+\usepackage{subcaption}
 
 \titleformat{\section}{\normalsize\bf}{\thesection \hspace{5pt}}{0em}{}
 \titleformat{\subsection}{\normalsize\bf}{\thesubsection \hspace{5pt}}{0em}{}
@@ -91,7 +93,109 @@ In MHA*, two weights are specified. The first weight ($w_1$) determines how much
 
 \section{Results}
 
-% TODO: I need to put a ton of graphs and tables here
+
+
+\begin{figure}
+\centering
+\begin{subfigure}{3.2in}
+  \includegraphics[width=3.2in]{graphs/singlethreadcomp_runningtime}
+  \caption{Running time}
+  \label{fig:singthread_runtime}
+\end{subfigure}
+\begin{subfigure}{3.2in}
+  \includegraphics[width=3.2in]{graphs/singlethreadcomp_solutionquality}
+  \caption{Solution length}
+  \label{fig:singthread_solnqual}
+\end{subfigure}
+\caption{Comparison with Runtime performance and solution quality as the number of different heuristics (cores) on a single machine increases.}
+\label{fig:singthread}
+\end{figure}
+
+\begin{figure}
+\centering
+\begin{subfigure}{3.2in}
+  \includegraphics[width=3.2in]{graphs/numcores_runningtime}
+  \caption{Running time}
+  \label{fig:numcores_runtime}
+\end{subfigure}
+\begin{subfigure}{3.2in}
+  \includegraphics[width=3.2in]{graphs/numcores_solutionquality}
+  \caption{Solution length}
+  \label{fig:numcores_solnqual}
+\end{subfigure}
+\caption{Runtime performance and solution quality as the number of different heuristics (cores) on a single machine increases.}
+\label{fig:numcores}
+\end{figure}
+
+\begin{figure}
+\centering
+\begin{subfigure}{3.2in}
+  \includegraphics[width=3.2in]{graphs/nummachines_runningtime}
+  \caption{Running time}
+  \label{fig:nummachines_runtime}
+\end{subfigure}
+\begin{subfigure}{3.2in}
+  \includegraphics[width=3.2in]{graphs/nummachines_solutionquality}
+  \caption{Solution length}
+  \label{fig:nummachines_solnqual}
+\end{subfigure}
+\caption{Runtime performance and solution quality as the number of different machines (with one process each) increases from 1 to 16.}
+\label{fig:nummachines}
+\end{figure}
+
+\begin{figure}
+\centering
+\begin{subfigure}{2.0in}
+  \includegraphics[width=2.0in]{graphs/commfreq_runningtime}
+  \caption{Running time}
+  \label{fig:commfreq_runtime}
+\end{subfigure}
+\begin{subfigure}{2.0in}
+  \includegraphics[width=2.0in]{graphs/commfreq_expansions}
+  \caption{Number of state expansions}
+  \label{fig:commfreq_expansions}
+\end{subfigure}
+\begin{subfigure}{2.0in}
+  \includegraphics[width=2.0in]{graphs/commfreq_solutionquality}
+  \caption{Solution length}
+  \label{fig:nummachines_solnqual}
+\end{subfigure}
+\caption{Runtime performance, solution quality, and number of states expanded by the heuristic machines as the number of iterations between communication increases. *At the high end (12800 iterations between sync-ups), one of the four trials timed out (failed to find a solution within 5 minutes). The values in this graph are the average of the remaining three trials.}
+\label{fig:commfreq}
+\end{figure}
+
+
+
+\begin{figure}
+\centering
+\begin{tabular}{ c | c | c | c }
+    \hline
+    \multicolumn{4}{c}{Single-threaded SMHA* implementation} \\ \hline    
+    \# cores & time & \# expand & soln len \\ \hline
+    1 & 1 & 2 & 3 \\ \hline
+    2 & 4 & 5 & 6 \\ \hline
+    4 & 7 & 8 & 9 \\ \hline
+    % FILL USING AMPERSAND-SEPARATED VALUES WITH "\\ \hline" APPENDED AT THE END
+    
+     \multicolumn{4}{c}{Parallelized SMHA* (single machine, syncing every X iterations)} \\ \hline
+    \# cores & time & \# expand & soln len \\ \hline
+    % FILL USING AMPERSAND-SEPARATED VALUES WITH "\\ \hline" APPENDED AT THE END
+    
+     \multicolumn{4}{c}{Distributed SMHA* (one process per machine, syncing every X iterations)} \\ \hline
+    \# machines & time & \# expand & soln len \\ \hline
+    % FILL USING AMPERSAND-SEPARATED VALUES WITH "\\ \hline" APPENDED AT THE END
+    
+     \multicolumn{4}{c}{Distributed SMHA* with varying frequency of sync-ups} \\ \hline
+     \multicolumn{4}{c}{(4 processes across 2 machines)} \\ \hline
+    \# iterations & time & \# expand & soln len \\ \hline
+    % FILL USING AMPERSAND-SEPARATED VALUES WITH "\\ \hline" APPENDED AT THE END
+
+    \hline
+\end{tabular}
+\caption{Data from our trials}
+\label{fig:datatable}
+\end{figure}
+
 
 
 \section{Conclusions}
