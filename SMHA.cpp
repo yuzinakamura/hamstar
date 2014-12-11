@@ -27,8 +27,8 @@ typedef pair<vector<int>, vector<int> > State;
 // compile-time constants
 constexpr int MASK_CLOSED = 1;
 constexpr int MASK_CLOSED_ANCHOR = 2;
-constexpr int GRID_ROWS = 6;
-constexpr int GRID_COLS = 6;
+constexpr int GRID_ROWS = 5;
+constexpr int GRID_COLS = 5;
 constexpr int NUM_MOVES = 4;
 constexpr double TIME_LIMIT = 300;
 constexpr Cost INFINITE = 1e30;
