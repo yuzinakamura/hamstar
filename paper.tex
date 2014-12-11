@@ -38,21 +38,21 @@ Our work is directly based on Aine et al.'s original multi-heuristic A* search \
 
 \begin{figure}
 \centering \includegraphics[width=5.0in]{system-diagram}
-\caption{A diagram of our system. One machine starts up the others and runs the admissible anchor search. The other machines run their individual heuristics. Communication is done using MPI. 
+\caption{A diagram of our system. One machine starts up the others and runs the monotone anchor search. The other machines run their individual heuristics. Communication is done using MPI. 
 \textcircled{1}\textbf{Anchor:} Starts heuristic machines; performs state expansions using anchor heuristic; receives, resolves, and broadcasts table updates; checks for termination conditions. \textcircled{2}\textbf{Heuristic:} Expands a likely state (chosen using heuristic); updates path cost to its successors; communicates updates to anchor; checks for termination conditions}
 \label{fig:sysdiag}
 \end{figure}
 
-An overview of our system is in Figure \ref{fig:sysdiag}. The main (anchor) machine starts up other heuristic machines. Each machine runs its own heuristic, with the anchor machine's being the admissible heuristic. Each of the non-anchor heuristic machines periodically sends updates of the data structures (tables containing shortest path information found so far) to the anchor machine, which compares the data it receives and sends out table updates of the best paths known so far to all other nodes.
+An overview of our system is in Figure \ref{fig:sysdiag}. The main (anchor) machine starts up other heuristic machines. Each machine runs its own heuristic, with the anchor machine's being the monotone heuristic. Each of the non-anchor heuristic machines periodically sends updates of the data structures (tables containing shortest path information found so far) to the anchor machine, which compares the data it receives and sends out table updates of the best paths known so far to all other nodes.
 
 \begin{figure}
 \centering \includegraphics[width=3in]{pseudocode}
-\caption{Pseudocode from Aine et al., detailing the original single-threaded version of the algorithm we parallelized.}
+\caption{Pseudocode from Aine et al., detailing the original sequential version of the algorithm we parallelized.}
 \label{fig:pseudocode}
 \end{figure}
 
 
-Our algorithm is based off of the single-threaded, round-robin SMHA* code presented in \cite{Aine14} (Figure \ref{fig:pseudocode}). Our parallelized code was written in C++ with inter-process communication accomplished using MPI. The work was distributed over one or more of the 16-core machines in the Apt cluster. % TODO: Machine specs here? Or in the experimental setup section?
+Our algorithm is based off of the sequential, round-robin SMHA* code presented in \cite{Aine14} (Figure \ref{fig:pseudocode}). Our parallelized code was written in C++ with inter-process communication accomplished using MPI. The work was distributed over one or more of the 16-core machines in the Apt cluster. % TODO: Machine specs here? Or in the experimental setup section?
 
 \subsection{Design Decisions}
 
@@ -90,7 +90,7 @@ Therefore, it suffices to use pointers referring to the machine's local entry fo
 
 We tested our algorithm on the 24-puzzle, a 5x5 grid of sliding blocks which must be rearranged to achieve a standard goal configuration, somewhat akin to solving a Rubix cube. Uniformly at random, we generated ten starting configurations among the over $3\times 10^{23}$ states of the puzzle. The data we collected were (1) running time, (2) total number of states in the problem graph that were expanded across all processes during the search, and (3) the length in steps of the best solution at termination. Our main evaluation criterion is the time to complete the search with the required suboptimality guarantee, which we fix to $w_1 w_2 = 4$.
 
-The anchor heuristic is $h(s) = MD(s) + LC(s)$ where $MD(s)$ is the sum of Manhattan distances of each non-blank tile to its destination, and $LC(s)$ is the linear conflicts heuristic which essentially adds 2 for each pair of horizontally or vertically aligned times which need to pass each other. This heuristic is admissible and monotone. Additional heuristics are generated randomly from $MD$, $LC$, and the misplaced tiles heuristic $MT$ which simply counts the number of non-blank tiles which are not already at their destinations. We randomly generate a triple of coefficients, each between 1 and 5, to form a linear combination of these heuristics. We repeat this process as many times as we require non-anchor heuristics. These heuristics are not at all admissible, and their high values give the search a goal-directed focus while the anchor is underestimating the true distance by a large margin.
+The anchor heuristic is $h(s) = MD(s) + LC(s)$ where $MD(s)$ is the sum of Manhattan distances of each non-blank tile to its destination, and $LC(s)$ is the linear conflicts heuristic which essentially adds 2 for each pair of horizontally or vertically aligned times which need to pass each other. This heuristic is admissible, in fact it's monotone. Additional heuristics are generated randomly from $MD$, $LC$, and the misplaced tiles heuristic $MT$ which simply counts the number of non-blank tiles which are not already at their destinations. We randomly generate a triple of coefficients, each between 1 and 5, to form a linear combination of these heuristics. We repeat this process as many times as we require non-anchor heuristics. These heuristics are not at all admissible, and their high values give the search a goal-directed focus while the anchor is underestimating the true distance by a large margin.
 
 % TODO: Apt? Machine specs?
 
@@ -100,7 +100,7 @@ SMHA* specifies two weight parameters. The first weight ($w_1$) gives the search
 
 \section{Results}
 
-Our first set of experiments shows the performance of our algorithm as we increase the number of processes in the distributed setting. We consider the case of multiple processes on a single multi-core machine, as well as multiple machines each running a single process. For comparison, we also include the performance of the single-threaded SMHA* algorithm that our work is based on. For that algorithm, we show performance as the number of heuristics it uses increases. As shown, performance initially increases significantly, but then drops off as the number of processes increases. Moreover, our distributed algorithm performs comparably to SMHA* in the case where the number of heuristi
+Our first set of experiments shows the performance of our algorithm as we increase the number of processes in the distributed setting. We consider the case of multiple processes on a single multi-core machine, as well as multiple machines each running a single process. For comparison, we also include the performance of the sequential SMHA* algorithm that our work is based on. For that algorithm, we show performance as the number of heuristics it uses increases. As shown, performance initially increases significantly, but then drops off as the number of processes increases. Moreover, our distributed algorithm performs comparably to SMHA* in the case where the number of heuristi
 
 
 \begin{figure}
@@ -178,7 +178,7 @@ Our first set of experiments shows the performance of our algorithm as we increa
 \centering
 \begin{tabular}{ c | c | c | c }
     \hline
-    \multicolumn{4}{c}{Single-threaded SMHA* implementation} \\ \hline    
+    \multicolumn{4}{c}{Sequential SMHA* implementation} \\ \hline    
     \# cores & time & \# expand & soln len \\ \hline
     1 & 1 & 2 & 3 \\ \hline
     2 & 4 & 5 & 6 \\ \hline
@@ -212,7 +212,7 @@ Our first set of experiments shows the performance of our algorithm as we increa
 
 
 
-% TODO: Should we have some kind of discussion on whether the parallelized version of SMHA* keeps the w1*w2 optimality guarantees that the single-threaded version does?? Also, maybe part of this, but the longer we go without doing a table update sync-up, the more the algorithm resembles IMHA*. It might be good to point this out somewhere, maybe in the Results/Discussion section
+% TODO: Should we have some kind of discussion on whether the parallelized version of SMHA* keeps the w1*w2 optimality guarantees that the sequential version does?? Also, maybe part of this, but the longer we go without doing a table update sync-up, the more the algorithm resembles IMHA*. It might be good to point this out somewhere, maybe in the Results/Discussion section
 
 
 
