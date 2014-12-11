@@ -44,9 +44,21 @@ Our work is directly based on Aine et al.'s original multi-heuristic A* search \
 
 An overview of our system is in Figure \ref{fig:sysdiag}. The main (anchor) machine starts up other heuristic machines. Each machine runs its own heuristic, with the anchor machine's being the monotone heuristic. Each of the non-anchor heuristic machines periodically sends updates of the data structures (tables containing shortest path information found so far) to the anchor machine, which compares the data it receives and sends out table updates of the best paths known so far to all other states.
 
+
+
 \begin{figure}
-\centering \includegraphics[width=3in]{pseudocode}
-\caption{Pseudocode from Aine et al., detailing the original sequential version of the algorithm we parallelized.}
+\centering
+\begin{subfigure}{3in}
+  \includegraphics[width=3in]{pseudocode}
+  \caption{Pseudocode}
+  \label{fig1}
+\end{subfigure}
+\begin{subfigure}{2in}
+  \includegraphics[width=2in]{graphs/puzzle}
+  \caption{15-puzzle goal configuration}
+  \label{fig2}
+\end{subfigure}
+\caption{Pseudocode from Aine et al., detailing the original sequential version of the algorithm we parallelized, alongside the sliding tile puzzle which we use it to solve.}
 \label{fig:pseudocode}
 \end{figure}
 
@@ -83,7 +95,6 @@ $bp(s)$ represents the parent of $s$ along the optimal path found so far from th
 
 Therefore, it suffices to use pointers referring to the machine's local entry for that state. These pointers need not be communicated until the search terminates. At that point, the path can be obtained by walking backwards from the goal. At each step, we move from the current state $s$ to the neighbor $s'$ which minimizes $g(s') + c(s',s)$ among the possible parents $s'=bp(s)$ pooled from all machines. Although we still end up sending full state representations, these are only for the parents of states along the path, rendering the overhead negligible.
 
-
 \section{Experimental Setup}
 
 We tested our algorithm on the 24-puzzle, a 5x5 grid of sliding blocks which must be rearranged to achieve a standard goal configuration, somewhat akin to solving a Rubix cube. Uniformly at random, we generated ten starting configurations among the over $3\times 10^{23}$ states of the puzzle. The data we collected were (1) running time, (2) total number of states in the problem graph that were expanded across all processes during the search, and (3) the length in steps of the best solution at termination. Our main evaluation criterion is the time to complete the search with the required suboptimality guarantee, which we fix to $w_1 w_2 = 4$.
@@ -104,7 +115,7 @@ Figure \ref{fig3} shows performance as we vary the number of iterations between 
 
 As discussed earlier, our algorithm does not appear to outperform SMHA* in the sliding tile puzzle domain. The most likely explanation for this is that, because the successor states and heuristics we used for the puzzle can be calculated extremely efficiently, there are a huge number of expansions per unit time. Each expanded state must be communicated to the anchor, which involves a considerable amount of work. It is likely that the amount of work in sending the states to the anchor, having the anchor process these states, broadcasting the best of those states to the other children, and having those children process the states, altogether takes about as much work as expanding the state alone. Indeed, figure \ref{fig5} shows that as the number of processes increases, communication quickly becomes a huge fraction of the total time spent. This increased communication cost ultimately outweighs the benefits of additional processes.
 
-Nevertheless, figure \ref{fig4} displays what the results might look like in a problem where the heuristic takes longer to calculate. Specifically, we artificially slow the heuristic calculation by a factor of 10. The result is that fewer states are expanded per second, and thus the cost of communicating a state is much lower relative to the cost of expanding it. In this case, our distributed algorithm can leverage the benefit of additional cores to outperform SMHA* if we use the one-on-one communication method described earlier in this paper. Thus, a distributed approach may prove helpful in domains such as manipulator arm planning, in which expansions are slowed by the collision checking and numerical integration needed to compute successor states and heuristics.
+Nevertheless, figure \ref{fig4} displays what the results might look like in a problem where the heuristic takes longer to calculate. Specifically, we artificially slow the heuristic calculation by a factor of 10. The result is that fewer states are expanded per second, and thus the cost of communicating a state is much lower relative to the cost of expanding it. In this case, our distributed algorithm can leverage the benefit of additional cores to outperform SMHA* if we use the one-on-one communication method described earlier in this report. Thus, a distributed approach may prove helpful in domains such as manipulator arm planning, in which expansions are slowed by the collision checking and numerical integration needed to compute successor states and heuristics.
 
 
 \begin{figure}
@@ -147,7 +158,7 @@ Nevertheless, figure \ref{fig4} displays what the results might look like in a p
 
 \section{Conclusions}
 
-In this paper we outlined the details of a distributed version of the SMHA* algorithm. We detailed the structure of the algorithm, and presented experimental results comparing the performance of the algorithm while varying a number of parameters. We also compared its performance to the original SMHA* algorithm. Although we found that in the specific domain we tested on (the sliding tile puzzle) our distributed variant did not outperform the original algorithm, we provided evidence that our algorithm could outperform SMHA* in domains where heuristics are difficult to calculate, or in general where state expansion is expensive.
+In this report, we outlined the details of a distributed version of the SMHA* algorithm. We detailed the implementation of the algorithm, and presented experimental results comparing its performance while varying a number of parameters. We also compared its performance to the original SMHA*. Although we found that our distributed variant did not outperform the original SHMA* in the specific domain we tested on (the sliding tile puzzle), we provided evidence that our algorithm could outperform SMHA* in domains where heuristics are difficult to calculate, or in general where state expansion is expensive.
 % TODO: Fill me in!
 
 
@@ -157,7 +168,7 @@ In this paper we outlined the details of a distributed version of the SMHA* algo
 
 
 
-%\section{Final Paper Outline}
+%\section{Final Report Outline}
 
 %\subsection{Introduction}
 %\subsection{Related Work}
@@ -168,7 +179,7 @@ In this paper we outlined the details of a distributed version of the SMHA* algo
 \bibliographystyle{ieeetr}
 \bibliography{sources}
 
-\begin{figure}
+\begin{figure}[b]
 \centering
 \includegraphics[width=1.6in]{graphs/hamstar}
 \end{figure}
