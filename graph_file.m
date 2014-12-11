@@ -8,38 +8,72 @@ labSolution = 'Shortest solution';
 
 
 % EXAMPLE #1 OF HOW TO GRAPH STUFF
+% Change the following if necessary
 filegroup = 'lame';
 xvals = [1, 2, 4, 8, 16];
 xlab = 'Number of nodes/heuristics (one machine)';
+titleRuntime = 'Running time with varying number of nodes';
+titleExpansions = 'States expanded with varying number of nodes';
+titleSolution = 'Solution length with varying number of nodes';
+
+% No need to change anything from this point on
 [runtime, expansions, solution, error_r, error_e, error_s] = get_data(filegroup, xvals);
 
-graph_with_error_bars(xvals, runtime, error_r, xlab, labRuntime, true, true);
-graph_with_error_bars(xvals, expansions, error_e, xlab, labExpansions, true, true);
-graph_with_error_bars(xvals, solution, error_s, xlab, labSolution, true, false);
-% IMPORTANT!! FOR EACH GRAPH THAT POPS UP, YOU NEED TO ADD A TITLE MANUALLY
-%             AND THEN SAVE IT AS A PNG MANUALLY
+fig_handle = graph_with_error_bars(xvals, runtime, error_r, xlab, labRuntime, true, true, titleRuntime);
+print(fig_handle, ['graphs/', filegroup, '_runningtime.png'], '-dpng', '-r0');
+fig_handle = graph_with_error_bars(xvals, expansions, error_e, xlab, labExpansions, true, true, titleExpansions);
+print(fig_handle, ['graphs/', filegroup, '_expansions.png'], '-dpng', '-r0');
+fig_handle = graph_with_error_bars(xvals, solution, error_s, xlab, labSolution, true, false, titleSolution);
+print(fig_handle, ['graphs/', filegroup, '_solutionquality.png'], '-dpng', '-r0');
 % /EXAMPLE #1
 
 
 
 % EXAMPLE #2 OF HOW TO GRAPH STUFF
+% Change the following if necessary
+filegroup1 = 'lame';
+filegroup2 = 'cool';
 xvals = [1, 2, 4, 8, 16];
 xlab = 'Number of nodes/heuristics (one machine)';
-filegroup = 'lame';
-[runtime1, expansions1, solution1, error_r1, error_e1, error_s1] = get_data(filegroup, xvals);
+titleRuntime = 'Running time with varying number of nodes';
+titleExpansions = 'States expanded with varying number of nodes';
+titleSolution = 'Solution length with varying number of nodes';
 legendlab1 = 'Lame SMHA*';
-
-filegroup = 'cool';
-[runtime2, expansions2, solution2, error_r2, error_e2, error_s2] = get_data(filegroup, xvals);
 legendlab2 = 'Cool SMHA*';
 
-multigraph_with_error_bars(xvals, runtime1, runtime2, error_r1, error_r2, xlab, labRuntime, legendlab1, legendlab2, true, true);
-multigraph_with_error_bars(xvals, expansions1, expansions2, error_e1, error_e2, xlab, labExpansions, legendlab1, legendlab2, true, true);
-multigraph_with_error_bars(xvals, solution1, solution2, error_s1, error_s2, xlab, labSolution, legendlab1, legendlab2, true, false);
-% IMPORTANT!! FOR EACH GRAPH THAT POPS UP, YOU NEED TO ADD A TITLE MANUALLY
-%             AND THEN SAVE IT AS A PNG MANUALLY
+% Do not need to change the following (I think)
+[runtime1, expansions1, solution1, error_r1, error_e1, error_s1] = get_data(filegroup1, xvals);
+[runtime2, expansions2, solution2, error_r2, error_e2, error_s2] = get_data(filegroup2, xvals);
+
+fig_handle = multigraph_with_error_bars(xvals, runtime1, runtime2, error_r1, error_r2, xlab, labRuntime, legendlab1, legendlab2, true, true, titleRuntime);
+print(fig_handle, ['graphs/', filegroup1, filegroup2, 'comp_runningtime.png'], '-dpng', '-r0');
+fig_handle = multigraph_with_error_bars(xvals, expansions1, expansions2, error_e1, error_e2, xlab, labExpansions, legendlab1, legendlab2, true, true, titleExpansions);
+print(fig_handle, ['graphs/', filegroup1, filegroup2, 'comp_expansions.png'], '-dpng', '-r0');
+fig_handle = multigraph_with_error_bars(xvals, solution1, solution2, error_s1, error_s2, xlab, labSolution, legendlab1, legendlab2, true, false, titleSolution);
+print(fig_handle, ['graphs/', filegroup1, filegroup2, 'comp_solutionquality.png'], '-dpng', '-r0');
 % /EXAMPLE #2
 
+
+
+
+% FREQUENCY
+filegroup = 'freq';
+xvals = [100, 200, 400, 800, 1600, 3200, 6400, 12800];
+xlab = 'Number of iterations between sync-ups (4 nodes on 2 machines)';
+titleRuntime = 'Running time with varying communication frequency';
+titleExpansions = 'States expanded with varying communication frequency';
+titleSolution = 'Solution length with varying communication frequency';
+
+% No need to change anything from this point on
+[runtime, expansions, solution, error_r, error_e, error_s] = get_data(filegroup, xvals);
+
+fig_handle = graph_with_error_bars(xvals, runtime, error_r, xlab, labRuntime, true, true, titleRuntime);
+print(fig_handle, ['graphs/', filegroup, '_runningtime.png'], '-dpng', '-r0');
+fig_handle = graph_with_error_bars(xvals, expansions, error_e, xlab, labExpansions, true, true, titleExpansions);
+print(fig_handle, ['graphs/', filegroup, '_expansions.png'], '-dpng', '-r0');
+fig_handle = graph_with_error_bars(xvals, solution, error_s, xlab, labSolution, true, false, titleSolution);
+print(fig_handle, ['graphs/', filegroup, '_solutionquality.png'], '-dpng', '-r0');
+% /EXAMPLE #1
 
 
 % MORE EXAMPLES
@@ -82,9 +116,10 @@ end
 
 
 
-function f = graph_with_error_bars(xvals, yvals, err, xlab, ylab, logx, logy)
+function fig_handle = graph_with_error_bars(xvals, yvals, err, xlab, ylab, logx, logy, graphtitle)
 
 fig_handle = figure;
+set(gcf,'PaperPositionMode','auto');
 
 % Plot values
 hold on;
@@ -93,9 +128,10 @@ data_handle = plot(xvals, yvals);
 
 xlabel(xlab);
 ylabel(ylab);
+title(graphtitle);
 
 % Make figure bigger
-set(fig_handle, 'Position', [0 0 800 500]);
+set(fig_handle, 'Position', [0 0 600 300]);
 
 % Make lines prettier
 set(eb_handle, 'Color', [.9 .5 1]);
@@ -141,9 +177,10 @@ end
 
 
 
-function f = multigraph_with_error_bars(xvals, yvals1, yvals2, err1, err2, xlab, ylab, legendlab1, legendlab2, logx, logy)
+function fig_handle = multigraph_with_error_bars(xvals, yvals1, yvals2, err1, err2, xlab, ylab, legendlab1, legendlab2, logx, logy, graphtitle)
 
 fig_handle = figure;
+set(gcf,'PaperPositionMode','auto');
 
 % Plot values
 hold on;
@@ -155,9 +192,10 @@ data_handle2 = plot(xvals, yvals2);
 xlabel(xlab);
 ylabel(ylab);
 legend([data_handle1, data_handle2], {legendlab1, legendlab2});
+title(graphtitle);
 
 % Make figure bigger
-set(fig_handle, 'Position', [0 0 800 500]);
+set(fig_handle, 'Position', [0 0 600 300]);
 
 % Make lines prettier
 set(eb_handle1, 'Color', [1 .8 .6]);
