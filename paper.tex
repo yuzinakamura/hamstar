@@ -17,7 +17,7 @@
 \begin{document}
 \maketitle
 
-\abstract{A* is a popular graph search algorithm used in many artificial intelligence applications. The original A* algorithm makes use of a single heuristic to prioritize exploration through a graph, but a variation on the algorithm known as multi-heuristic A* (MHA*) makes use of multiple heuristics to more quickly arrive at approximate solutions. For this project we implemented a distributed version of MHA*, with one process per heuristic. We compare the results of our distributed implementation to the original MHA* algorithm. In particular, we provide evidence that in domains where state expansion is expensive, such as when heuristic calculations are slow, our distributed approach may outperform MHA*.
+\abstract{A* is a popular graph search algorithm used in many artificial intelligence applications. The original A* algorithm uses a single heuristic to prioritize exploration through a graph, but a variation on the algorithm known as shared multi-heuristic A* (SMHA*) makes use of multiple heuristics to more quickly arrive at near-optimal solutions. For this project, we implemented a distributed version of SMHA*, separating each heuristic into a separate process. We compare the results of our distributed implementation to the original SMHA* algorithm. In particular, we provide evidence that in domains where state expansions are expensive, our distributed approach may outperform SMHA*.
 
 \section{Introduction}
 
@@ -161,11 +161,11 @@ Nevertheless, figure \ref{fig4} displays what the results might look like in a p
 \section{Conclusions}
 
 
-In this report, we outlined the details of a distributed version of the SMHA* algorithm. We detailed the implementation of the algorithm, and presented experimental results comparing its performance while varying a number of parameter. We also compared its performance to the original SMHA* algorithm.
+In this report, we outlined the details of a distributed version of the SMHA* algorithm. We detailed the implementation of the algorithm, and presented experimental results comparing its performance while varying a number of parameters. We also compared its performance to the original SMHA* algorithm.
 
-In the specific domain we tested on (the sliding tile puzzle), our distributed algorithm did not outperform the original SHMA*. The culprit appears to be the excessive communication cost relative to the cost of expanding a state. We were partially able to mitigate this by using the broadcast model of communication, and by reducing the footprint of a communicated state by not recovering the backpointer until the end and by offloading the calculation of the anchor heuristic onto the child machines. Nevertheless, it appears more optimizations would be required in order to gain a significant benefit over vanilla SMHA*. One possibility is the use of asynchronous communication. Both of our communication models required the sender and receiver to be ready to communicate simultaneously. If one was ready before the other, then that machine would be blocked until the counterpart responded. Using asynchronous communication would eliminate the requirement that all machines cease work until all are ready, which becomes a more significant problem as the size of the distribution grows due to the possibility of slow outlier machines. This would also make the algorithm more robust to failure, since the algorithm could proceed even if one machine becomes unresponsive. The latest version of MPI (MPI 3.0) appears to include an asynchronous broadcast option that would accomplish something similar to this.
+In the specific domain we tested on (the sliding tile puzzle), our distributed algorithm did not outperform the original SHMA*. The culprit appears to be the excessive communication cost relative to the cost of expanding a state. We were partially able to mitigate this by using the broadcast model of communication, and by reducing the footprint of a communicated state by not recovering the backpointer until the end and by offloading the calculation of the anchor heuristic onto the child machines. Nevertheless, it appears more optimizations would be required in order to gain a significant benefit over vanilla SMHA*. One possibility is the use of asynchronous communication. Both of our communication models required the sender and receiver to be ready to communicate simultaneously. If one was ready before the other, then that machine would be blocked until the counterpart responded. Using asynchronous communication would eliminate the requirement that all machines cease work until all are ready which, due to the likelihood of slow outlier machines, becomes a more significant problem as the machine count increases. This would also make the algorithm more robust to failure, since the algorithm could proceed even if some machines become unresponsive. The latest version of MPI (MPI 3.0) appears to include an asynchronous broadcast option that would accomplish something similar to this.
 
-Although we found that in the specific domain we tested on (the sliding tile puzzle) our distributed variant did not outperform the original algorithm, we provided evidence that our algorithm could outperform SMHA* in domains where heuristics are difficult to calculate, or in general where state expansion is expensive.
+Although our distributed algorithm did not outperform SHMA* on the sliding tile puzzle, we have provided evidence that our algorithm could outperform SMHA* in domains where heuristics are difficult to calculate, or in general where state expansion is expensive.
 
 
 % TODO: Should we have some kind of discussion on whether the parallelized version of SMHA* keeps the w1*w2 optimality guarantees that the sequential version does?? Also, maybe part of this, but the longer we go without doing a table update sync-up, the more the algorithm resembles IMHA*. It might be good to point this out somewhere, maybe in the Results/Discussion section
@@ -186,7 +186,7 @@ Although we found that in the specific domain we tested on (the sliding tile puz
 
 \begin{figure}[b]
 \centering
-\includegraphics[width=1.6in]{graphs/hamstar}
+\includegraphics[width=0.42in]{graphs/hamstar}
 \end{figure}
 
 
