@@ -1,4 +1,4 @@
-\documentclass[11pt]{article}
+\documentclass{article}
 
 \usepackage{fullpage}
 \usepackage{titlesec}
@@ -17,7 +17,9 @@
 \begin{document}
 \maketitle
 
-\abstract{A* is a popular graph search algorithm used in many artificial intelligence applications. The original A* algorithm uses a single heuristic to prioritize exploration through a graph, but a variation on the algorithm known as shared multi-heuristic A* (SMHA*) makes use of multiple heuristics to more quickly arrive at near-optimal solutions. For this project, we implemented a distributed version of SMHA*, separating each heuristic into a separate process. We compare the results of our distributed implementation to the original SMHA* algorithm. In particular, we provide evidence that in domains where state expansions are expensive, our distributed approach may outperform SMHA*.
+\begin{abstract}
+A* is a popular graph search algorithm used in many artificial intelligence applications. The original A* algorithm uses a single heuristic to prioritize exploration through a graph, but a variation on the algorithm known as shared multi-heuristic A* (SMHA*) makes use of multiple heuristics to more quickly arrive at near-optimal solutions. For this project, we implemented a distributed version of SMHA*, separating each heuristic into a separate process. We compare the results of our distributed implementation to the original SMHA* algorithm. In particular, we provide evidence that in domains where state expansions are expensive, our distributed approach may outperform SMHA*.
+\end{abstract}
 
 \section{Introduction}
 
@@ -35,7 +37,7 @@ Our work is directly based on Aine et al.'s original multi-heuristic A* search \
 
 \section{System Description}
 
-\begin{figure}
+\begin{figure}[h]
 \centering \includegraphics[width=5.0in]{system-diagram}
 \caption{A diagram of our system. One machine starts up the others and runs the monotone anchor search. The other machines run their individual heuristics. Communication is done using MPI. 
 \textcircled{1}\textbf{Anchor:} Starts heuristic machines; performs state expansions using anchor heuristic; receives, resolves, and broadcasts table updates; checks for termination conditions. \textcircled{2}\textbf{Heuristic:} Expands a likely state (chosen using heuristic); updates path cost to its successors; communicates updates to anchor; checks for termination conditions}
@@ -46,7 +48,7 @@ An overview of our system is in Figure \ref{fig:sysdiag}. The main (anchor) mach
 
 
 
-\begin{figure}
+\begin{figure}[h]
 \centering
 \begin{subfigure}{3in}
   \includegraphics[width=3in]{pseudocode}
@@ -99,17 +101,15 @@ Therefore, it suffices to use pointers referring to the machine's local entry fo
 
 \section{Experimental Setup}
 
-We tested our algorithm on the 24-puzzle, a 5x5 grid of sliding blocks which must be rearranged to achieve a standard goal configuration, somewhat akin to solving a Rubix cube. Uniformly at random, we generated ten starting configurations among the over $3\times 10^{23}$ states of the puzzle. The data we collected were (1) running time, (2) total number of states in the problem graph that were expanded across all processes during the search, and (3) the length in steps of the best solution at termination. Our main evaluation criterion is the time to complete the search with the required suboptimality guarantee, which we fix to $w_1 w_2 = 4$.
+We tested our algorithm on the 24-puzzle, a 5x5 grid of sliding blocks which must be rearranged to achieve a standard goal configuration, somewhat akin to solving a Rubix cube. Uniformly at random, we generated 10 starting configurations among the over $3\times 10^{23}$ states of the puzzle. The data we collected were (1) running time, (2) total number of states in the problem graph that were expanded across all processes during the search, and (3) the length in steps of the best solution at termination. For each of these, we discard the top and bottom value. Our plots show the min, mean and max of the 8 remaining values. Our main evaluation criterion is the time to complete the search with the required suboptimality guarantee, which we fix to $w_1 w_2 = 4$.
 
-The anchor heuristic is $h(s) = MD(s) + LC(s)$ where $MD(s)$ is the sum of Manhattan distances of each non-blank tile to its destination, and $LC(s)$ is the linear conflicts heuristic which essentially adds 2 for each pair of horizontally or vertically aligned times which need to pass each other. This heuristic is admissible, in fact it's monotone. Additional heuristics are generated randomly from $MD$, $LC$, and the misplaced tiles heuristic $MT$ which simply counts the number of non-blank tiles which are not already at their destinations. We randomly generate a triple of coefficients, each between 1 and 5, to form a linear combination of these heuristics. We repeat this process as many times as we require non-anchor heuristics. These heuristics are not at all admissible, and their high values give the search a goal-directed focus while the anchor is underestimating the true distance by a large margin.
+The anchor heuristic is $h(s) = MD(s) + LC(s)$ where $MD(s)$ is the sum of Manhattan distances of each non-blank tile to its destination, and $LC(s)$ is the linear conflicts heuristic which essentially adds 2 for each pair of horizontally or vertically aligned times which need to pass each other. This heuristic is admissible, in fact it's monotone. Additional heuristics are generated randomly from $MD$, $LC$, and the misplaced tiles heuristic $MT$ which simply counts the number of non-blank tiles which are not already at their destinations. We randomly generate a triple of coefficients, each between 1 and 5, to form a linear combination of these heuristics. We repeat this process as many times as we require non-anchor heuristics. These heuristics are not at all admissible, and their high values give the search a goal-directed focus as the anchor typically underestimates the true distance by a large margin.
 
-% TODO: Talk about what we varied for the tests. Frequency of communication, effect of adding more heuristics, effect of adding more machines (maybe we want a graph that compares the effect of adding more heuristics on the same machine vs. adding more heuristics by using more machines), and comparison to single thread/round robing running time
-
-SMHA* specifies two weight parameters. The first weight ($w_1$) gives the search a more depth-first goal-directed focus. The second weight ($w_2$) determines the margin by which a proposed solution's cost may exceed the anchor's minimum frontier key value, which is itself $w1$ times a lower bound on the optimum solution cost. Therefore, SMHA* guarantees that the solution found at termination is at most $w_1 w_2$ times the optimum value. For all experiments, we used $w_1 = w_2 = 2$. Every state expanded by the anchor has a $g$ value which is optimal to within a factor of $w_1$.
+SMHA* specifies two weight parameters. The first weight ($w_1$) gives the search a more depth-first goal-directed focus. The second weight ($w_2$) determines the margin by which a proposed solution's cost may exceed the anchor's minimum frontier key value, which is itself $w1$ times a lower bound on the optimum solution cost. Therefore, SMHA* guarantees that the solution found at termination is at most $w_1 w_2$ times the optimum value. This guarantee applies equally well in our distributed variant. For all experiments, we used $w_1 = w_2 = 2$. Every state expanded by the anchor has a $g$ value which is optimal to within a factor of $w_1$.
 
 \section{Results}
 
-Figure \ref{fig1} shows performance as we increase the number of processes (or heuristics, in the case of SMHA*). As shown, performance increases significantly at first, but then drops off as the number of processes increases. When running on a single machine, our distributed algorithm performs comparably to SMHA* for 4 or fewer cores, but decreases in performance as more processes are added.
+Figure \ref{fig1} plots runtime as we increase the number of processes (or heuristics, in the case of SMHA*). As shown, performance increases significantly at first, but then drops off as the number of processes increases. When running on a single machine, our distributed algorithm performs comparably to SMHA* for 4 or fewer cores, but decreases in performance as more processes are added.
 
 There are a number of likely explanations for this. First, the initial performance increase is largely a result of adding a heuristic with a greedier bias, typically finding a slightly less optimal path more quickly. Indeed, figure \ref{fig2} shows that the solution length increases considerably after adding just one non-anchor process. However, it is worth noting that our criterion is specifically to find a path whose cost is within the specified multiple (in our case, 4) of the optimum. Crucially, the combination of monotone and inadmissible search is able to guarantee the near-optimality of the solution; thus, the slightly longer path is viewed as an equally valid solution. The additional heuristics provide more variety in the search, making it more likely for at least one of them (or some combination) to succeed in finding a good path. The drop in performance as more processes are added appears to be due to the increased communication cost of using a broadcast communication system. All processes must pause for this, and some might be slow in calling the broadcast command. Moreover, as more processes are added, the anchor receives more states that it must sift through, and the following message that it broadcasts increases in size as well. Thus, it appears that after a sufficiently diverse group of heuristics is added, the added communication cost of additional heuristics outweighs the benefits. These communication costs are analyzed in more detail later in this section and are displayed in figure \ref{fig5}.
 
@@ -168,25 +168,12 @@ In the specific domain we tested on (the sliding tile puzzle), our distributed a
 Although our distributed algorithm did not outperform SHMA* on the sliding tile puzzle, we have provided evidence that our algorithm could outperform SMHA* in domains where heuristics are difficult to calculate, or in general where state expansion is expensive.
 
 
-% TODO: Should we have some kind of discussion on whether the parallelized version of SMHA* keeps the w1*w2 optimality guarantees that the sequential version does?? Also, maybe part of this, but the longer we go without doing a table update sync-up, the more the algorithm resembles IMHA*. It might be good to point this out somewhere, maybe in the Results/Discussion section
-
-
-
-
-%\section{Final Report Outline}
-
-%\subsection{Introduction}
-%\subsection{Related Work}
-%\subsection{System Description}
-%\subsection{Evaluation}
-%\subsection{Conclusions and Future Work}
-
 \bibliographystyle{ieeetr}
 \bibliography{sources}
 
 \begin{figure}[b]
 \centering
-\includegraphics[width=0.4in]{graphs/hamstar}
+\includegraphics[width=0.49in]{graphs/hamstar}
 \end{figure}
 
 
