@@ -33,11 +33,13 @@ constexpr double TIME_LIMIT = 300;
 constexpr Cost INFINITE = 1e30;
 constexpr int HEAD_NODE = 0;
 
+constexpr int SLOWDOWN = 10;
+
 #include "lame_SMHA.h"
 
 static int finished = -1;
 int SEED = 1;
-int NUM_HEURISTICS = 1;
+int NUM_HEURISTICS = 8;
 string filename = "test";
 
 // right, up, left, down
@@ -194,9 +196,14 @@ vector<Searcher> vec_search;
 
 // determine the heuristics to be used
 void computeH(const State& s, StateData& s_data) {
-  Cost hMD = manhattanDist(s, goal);
-  Cost hLC = linearConflicts(s, goal);
-  Cost hMT = misplacedTiles(s, goal);
+	Cost hMD;
+	Cost hLC;
+	Cost hMT;
+	for (int i = 0; i < SLOWDOWN; i++) {
+		hMD = manhattanDist(s, goal);
+		hLC = linearConflicts(s, goal);
+		hMT = misplacedTiles(s, goal);
+	}
   for (int i = 0; i < NUM_HEURISTICS; ++i) {
     s_data.h.push_back(vec_search[i].MD*hMD + vec_search[i].LC*hLC + vec_search[i].MT*hMT);
     s_data.iter.push_back(vec_search[i].open.cend());

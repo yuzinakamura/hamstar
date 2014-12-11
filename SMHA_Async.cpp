@@ -27,20 +27,18 @@ typedef pair<vector<int>, vector<int> > State;
 // compile-time constants
 constexpr int MASK_CLOSED = 1;
 constexpr int MASK_CLOSED_ANCHOR = 2;
-constexpr int GRID_ROWS = 6;
-constexpr int GRID_COLS = 6;
+constexpr int GRID_ROWS = 5;
+constexpr int GRID_COLS = 5;
 constexpr int NUM_MOVES = 4;
 constexpr double TIME_LIMIT = 300;
 constexpr Cost INFINITE = 1e30;
 
 //communication constants
-constexpr bool COMM_ITER = true;
-constexpr double COMM_INTERVAL = 0.2;
-constexpr int COMM_FREQ = 10000;
-constexpr int BUFFER_SIZE = COMM_FREQ*NUM_MOVES*4; //Number of new g values before a message is sent. The actual buffer is double this, because it needs the node too.
+constexpr int COMM_FREQ = 1000;
+constexpr int BUFFER_SIZE = COMM_FREQ*NUM_MOVES*10; //Number of new g values before a message is sent. The actual buffer is double this, because it needs the node too.
 constexpr int DATUM_SIZE = (GRID_ROWS * GRID_COLS) + 1 + 2; //4x4 state, backtrace, mask, g, and h. Assumes Cost is same size as int
 constexpr int HEAD_NODE = 0;
-constexpr int SLOWDOWN = 1;	//Factor to slow down heuristic calculation by. Must be an int and >= 1. Make 1 for no slowdown
+constexpr int SLOWDOWN = 10;	//Factor to slow down heuristic calculation by. Must be an int and >= 1. Make 1 for no slowdown
 
 static int comm_size;
 static int comm_rank;
@@ -244,8 +242,8 @@ public:
   int total_expanded;
 
   //Communication stuff
-  int * head_buffer;
-  int * child_buffer;
+  int * to_buffer;
+  int * from_buffer;
   //set<State> updated_states;
   unordered_set< State, state_hash> updated_states;
 
@@ -259,8 +257,8 @@ public:
 		  hLC = linearConflicts(s, goal);
 		  hMT = misplacedTiles(s, goal);
 	  }
-    s_data.hAnch = hMD + hLC;
-    s_data.h = MD*hMD + LC*hLC + MT*hMT;
+	s_data.hAnch = hMD + hLC;
+	s_data.h = MD*hMD + LC*hLC + MT*hMT;
     s_data.iter = open.cend();
   }
 
@@ -301,8 +299,8 @@ public:
     open.clear();
     data.clear();
 
-    head_buffer = new int[(BUFFER_SIZE * DATUM_SIZE + 4) * comm_size];
-    child_buffer = new int[(BUFFER_SIZE * DATUM_SIZE + 5) * comm_size]; //The +1 is a hack. It's a cost
+    to_buffer = new int[(BUFFER_SIZE * DATUM_SIZE + 4)];
+    from_buffer = new int[(BUFFER_SIZE * DATUM_SIZE + 5)]; //The +1 is a hack. It's a cost
 
     // create data entry for start state
     StateData& start_data = data[start];
@@ -408,164 +406,178 @@ public:
     return s;
   }
 
-  //When passed in a state, it will serialize the state's data and insert it into the buffer starting at index
-  void serialize_state(const State * state, StateData * s_data, int * buffer, int& index) {
-    int indexStart = index; // sanity check
-    
-    for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
-      buffer[index++] = state->first[pos];
-    }
-    buffer[index++] = s_data->mask;
-    memcpy(buffer+index, &s_data->g, sizeof(Cost));
-    index += sizeof(Cost) / sizeof(int);
-    memcpy(buffer+index, &s_data->hAnch, sizeof(Cost));
-    index += sizeof(Cost) / sizeof(int);
+//When passed in a state, it will serialize the state's data and insert it into the buffer starting at index
+void serialize_state(const State * state, StateData * s_data, int * buffer, int& index) {
+	int indexStart = index; // sanity check
 
-    assert(index == indexStart + DATUM_SIZE);
-  }
+	for (int pos = 0; pos < GRID_ROWS * GRID_COLS; pos++) {
+		buffer[index++] = state->first[pos];
+	}
+	buffer[index++] = s_data->mask;
+	memcpy(buffer + index, &s_data->g, sizeof(Cost));
+	index += sizeof(Cost) / sizeof(int);
+	memcpy(buffer + index, &s_data->hAnch, sizeof(Cost));
+	index += sizeof(Cost) / sizeof(int);
 
-  void run() {
-	  int benchmark = 0;
-    int flag = 0;
-    MPI_Status status;
-    MPI_Request request;
-    int error = -1;
+	assert(index == indexStart + DATUM_SIZE);
+}
 
-    cout << "Starting run" << endl;
-    int iter = 0;
-    Clock::time_point last_time = Clock::now();
-    // repeat until some thread declares the search to be finished
-    while (true) {
+void run() {
+	int benchmark = 0;
+	int flag = 0;
+	MPI_Status status;
+	MPI_Request request;
+	int error = -1;
+
+	cout << "Starting run" << endl;
+	int iter = 0;
+	Clock::time_point last_time = Clock::now();
+	// repeat until some thread declares the search to be finished
+	while (true) {
 		if (num_expanded > benchmark) {
 			benchmark += 100000;
 			cout << "Machine " << comm_rank << " expanded " << num_expanded << endl;
 		}
 
-      if (comm_rank == HEAD_NODE) {
-        if (open.empty()) {
-          opt_bound = INFINITE;
-        }
-        else {
-          opt_bound = max(opt_bound, open.cbegin()->first);
-        }
-      }
-	  Clock::time_point before_comm = Clock::now();
-	  if ((COMM_ITER && iter % COMM_FREQ == 0) || (!COMM_ITER && iter % 10 == 0 && chrono::duration<double, chrono::seconds::period>(Clock::now() - last_time).count() > COMM_INTERVAL)) {
-		  last_time = Clock::now();
-        //cout << "Process " << comm_rank << " preparing to communicate " << endl;
-        //Handle communication
-        //First, Gather to HEAD_NODE
-		  Clock::time_point before_gather = Clock::now();
-        if (comm_rank == HEAD_NODE) {
-          memset(head_buffer, 0, sizeof(int)*(BUFFER_SIZE*DATUM_SIZE + 4)*comm_size);
-          //cout << "Process " << comm_rank << " receiving gather" << endl;
-          //MPI_Gather(MPI_IN_PLACE, 0, MPI_INT, head_buffer, BUFFER_SIZE*DATUM_SIZE+1, MPI_INT, HEAD_NODE, MPI_COMM_WORLD);
-		  Clock::time_point before_time = Clock::now();
-          MPI_Gather(MPI_IN_PLACE, BUFFER_SIZE*DATUM_SIZE + 4, MPI_INT, head_buffer, BUFFER_SIZE*DATUM_SIZE + 4, MPI_INT, HEAD_NODE, MPI_COMM_WORLD);
-		  time_waiting_gather += chrono::duration<double, chrono::seconds::period>(Clock::now() - before_time).count();
-          //cout << "Process " << comm_rank << " received gather" << endl;
-          int index = 0;
-		  total_discovered = num_discovered;
-		  total_expanded = num_expanded;
-          for (int machine = 0; machine < comm_size; machine++) {
-            int num_sent = head_buffer[machine*(BUFFER_SIZE*DATUM_SIZE+4)]; //Number of states this child sent in.
-			total_discovered += head_buffer[machine*(BUFFER_SIZE*DATUM_SIZE + 4)+1];
-			total_expanded += head_buffer[machine*(BUFFER_SIZE*DATUM_SIZE + 4)+2];
-			assert(head_buffer[machine*(BUFFER_SIZE*DATUM_SIZE + 4) + 3] == 1 || head_buffer[machine*(BUFFER_SIZE*DATUM_SIZE + 4) + 3] == 0);
-			int in_finished = head_buffer[machine*(BUFFER_SIZE*DATUM_SIZE + 4) + 3];
-			finished = max(finished,in_finished);
-			
-            index = machine*(BUFFER_SIZE*DATUM_SIZE + 4) + 4;
-            while (num_sent > 0) {
-              num_sent--;
-			  Clock::time_point before_state = Clock::now();
-              State s = update_state(head_buffer, index);
-			  time_state += chrono::duration<double, chrono::seconds::period>(Clock::now() - before_state).count();
-			  Clock::time_point before_set = Clock::now();
-              updated_states.insert(s);
-			  time_set += chrono::duration<double, chrono::seconds::period>(Clock::now() - before_set).count();
-            }
-          }
-        }
-        else {
-          memset(child_buffer, 0, sizeof(int)*(BUFFER_SIZE*DATUM_SIZE + 4)*comm_size);
-          int index = 0;
-          child_buffer[index++] = updated_states.size();
-		  assert(updated_states.size() <= COMM_FREQ*4);
-		  child_buffer[index++] = num_discovered;
-		  child_buffer[index++] = num_expanded;
-		  child_buffer[index++] = finished;
-          //cout << "States updated: " << child_buffer[0] << endl;
-          auto it = updated_states.cbegin();
-          for (; it != updated_states.cend(); it++) {
-            const State& s = *it;
-            StateData& s_data = data[s];
-            serialize_state(&s, &s_data, child_buffer, index);
-          }
-          updated_states.clear();
-          //cout << "Process " << comm_rank << " sending gather" << endl;
-		  Clock::time_point before_time = Clock::now();
-          MPI_Gather(child_buffer, BUFFER_SIZE*DATUM_SIZE + 4, MPI_INT, NULL, BUFFER_SIZE*DATUM_SIZE + 4, MPI_INT, HEAD_NODE, MPI_COMM_WORLD);
-		  time_waiting_gather += chrono::duration<double, chrono::seconds::period>(Clock::now() - before_time).count();
-          //cout << "Process " << comm_rank << " sent gather" << endl;
-        }
-		time_gather += chrono::duration<double, chrono::seconds::period>(Clock::now() - before_gather).count();
-
-        //Now, Bcast
-		Clock::time_point before_bcast = Clock::now();
-        //cout << "Process " << comm_rank << " Beginning bcast" << endl;
-        memset(child_buffer, 0, sizeof(int)*(BUFFER_SIZE*DATUM_SIZE + 4)*comm_size);
-        if (comm_rank == HEAD_NODE) {
-          int index = 0;
-          memcpy(&child_buffer[index++], &opt_bound, sizeof(Cost));
-          child_buffer[index++] = updated_states.size();
-		  assert(updated_states.size() <= BUFFER_SIZE*comm_size);
-		  child_buffer[index++] = total_discovered;
-		  child_buffer[index++] = total_expanded;
-		  child_buffer[index++] = finished;
-          auto it = updated_states.cbegin();
-          for (; it != updated_states.cend(); it++) {
-            const State& s = *it;
-            StateData& s_data = data[s];
-            serialize_state(&s, &s_data, child_buffer, index);
-          }
-          updated_states.clear();
-        }
-        //cout << "Process " << comm_rank << " Sending bcast" << endl;
-		Clock::time_point before_time = Clock::now();
-        MPI_Bcast(child_buffer, (BUFFER_SIZE*DATUM_SIZE + 5)*comm_size, MPI_INT, HEAD_NODE, MPI_COMM_WORLD);
-		time_waiting_bcast += chrono::duration<double, chrono::seconds::period>(Clock::now() - before_time).count();
-        //cout << "Process " << comm_rank << " sent bcast " << endl;
-        if (comm_rank != HEAD_NODE) {
-          int index = 0;
-          memcpy(&opt_bound, &child_buffer[index++], sizeof(Cost));
-          int num_sent = child_buffer[index++];
-		  total_discovered = child_buffer[index++];
-		  total_expanded = child_buffer[index++];
-		  assert(child_buffer[index] == 0 || child_buffer[index] == 1);
-		  finished = max(finished, child_buffer[index++]);
-          assert(num_sent >= 0 && num_sent < 100000000);
-          while (num_sent > 0) {
-            num_sent--;
-            State s = update_state(child_buffer, index);
-            //updated_states.insert(s);
-          }
-        }
-		time_bcast += chrono::duration<double, chrono::seconds::period>(Clock::now() - before_bcast).count();
-
-        //cout << "Process " << comm_rank << " finished comm" << endl;
-		if (finished) {
-			cout << "Machine " << comm_rank << " received a finish variable " << endl;
-			cout << "Time spent wating gather: " << time_waiting_gather << endl;
-			cout << "Time spent wating bcast: " << time_waiting_bcast << endl;
-			cout << "Time spent comming: " << time_comm << endl;
-			cout << "Time spent bcasting: " << time_bcast << endl;
-			cout << "Time spent gathering: " << time_gather << endl;
-			cout << "Time spent setting: " << time_set << endl;
-			cout << "Time spent stating: " << time_state << endl;
-			return;
+		if (comm_rank == HEAD_NODE) {
+			if (open.empty()) {
+				opt_bound = INFINITE;
+			}
+			else {
+				opt_bound = max(opt_bound, open.cbegin()->first);
+			}
 		}
-      }
+		Clock::time_point before_comm = Clock::now();
+
+		if (comm_rank == HEAD_NODE) {
+			//Send MPI_Send to each node every X iterations
+			if (iter % COMM_FREQ == 0 && iter > 0) {
+				last_time = Clock::now();
+				Clock::time_point before_gather = Clock::now();
+
+				//Prepare states to send
+				memset(from_buffer, 0, sizeof(BUFFER_SIZE*DATUM_SIZE + 5));
+				int index = 0;
+				memcpy(&from_buffer[index++], &opt_bound, sizeof(Cost));
+				from_buffer[index++] = updated_states.size();
+				assert(updated_states.size() <= BUFFER_SIZE*comm_size);
+				from_buffer[index++] = total_discovered;
+				from_buffer[index++] = total_expanded;
+				from_buffer[index++] = finished;
+				auto it = updated_states.cbegin();
+				for (; it != updated_states.cend(); it++) {
+					const State& s = *it;
+					StateData& s_data = data[s];
+					serialize_state(&s, &s_data, from_buffer, index);
+				}
+				updated_states.clear();
+
+				int ping = 1;
+				for (int machine = 0; machine < comm_size; machine++) {
+					if (machine == HEAD_NODE) {
+						continue;
+					}
+
+					cout << "Head sending to " << machine << endl;
+					MPI_Send(from_buffer, BUFFER_SIZE*DATUM_SIZE + 5, MPI_INT, machine, 0, MPI_COMM_WORLD); //Send prepared message
+					cout << "Head sent to " << machine << endl;
+					MPI_Recv(to_buffer, BUFFER_SIZE*DATUM_SIZE + 4, MPI_INT, machine, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE); //Get a response containing States
+					cout << "Head received from " << machine << endl;
+
+					int index = 0;
+					//After responding, process states
+					int num_sent = to_buffer[index++]; //Number of states this child sent in.
+					total_discovered += to_buffer[index++];
+					total_expanded += to_buffer[index++];
+					assert(to_buffer[index] == 1 || to_buffer[index] == 0);
+					int in_finished = to_buffer[index++];
+					finished = max(finished, in_finished);
+
+					while (num_sent > 0) {
+						num_sent--;
+						Clock::time_point before_state = Clock::now();
+						State s = update_state(to_buffer, index);
+						time_state += chrono::duration<double, chrono::seconds::period>(Clock::now() - before_state).count();
+						Clock::time_point before_set = Clock::now();
+						updated_states.insert(s);
+						time_set += chrono::duration<double, chrono::seconds::period>(Clock::now() - before_set).count();
+					}
+				} //End of machine loop
+			}
+
+			//cout << "Process " << comm_rank << " finished comm" << endl;
+			if (finished) {
+				cout << "Machine " << comm_rank << " received a finish variable " << endl;
+				cout << "Time spent comming: " << time_comm << endl;
+				cout << "Time spent setting: " << time_set << endl;
+				cout << "Time spent stating: " << time_state << endl;
+				return;
+			}
+		}
+		else {
+			//Periodically call IProbe to check for incoming messages.
+			if (iter % 10 == 0) {
+				MPI_Status status;
+				int flag = false;
+				//cout << "Process " << comm_rank << " probing" << endl;
+				MPI_Iprobe(HEAD_NODE, 0, MPI_COMM_WORLD, &flag, &status);
+				//cout << "Process " << comm_rank << " probed" << endl;
+				if (flag == true) {
+					//Receive the update
+					cout << "Process " << comm_rank << " receiving" << endl;
+					MPI_Recv(from_buffer, BUFFER_SIZE*DATUM_SIZE + 5, MPI_INT, HEAD_NODE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+					cout << "Process " << comm_rank << " received" << endl;
+
+					//Immediately respond with my updates
+					memset(to_buffer, 0, sizeof(int)*(BUFFER_SIZE*DATUM_SIZE + 4));
+					cout << "Process " << comm_rank << " cleared buffer " << endl;
+					int index = 0;
+					to_buffer[index++] = updated_states.size();
+					cout << "Process " << comm_rank << " preparing " << updated_states.size() << " updates" << endl;
+					assert(updated_states.size() <= BUFFER_SIZE);
+					to_buffer[index++] = num_discovered;
+					to_buffer[index++] = num_expanded;
+					to_buffer[index++] = finished;
+					//cout << "States updated: " << to_buffer[0] << endl;
+					auto it = updated_states.cbegin();
+					for (; it != updated_states.cend(); it++) {
+						const State& s = *it;
+						StateData& s_data = data[s];
+						serialize_state(&s, &s_data, to_buffer, index);
+					}
+					updated_states.clear();
+					//cout << "Process " << comm_rank << " sending gather" << endl;
+					Clock::time_point before_time = Clock::now();
+					cout << "Process " << comm_rank << " sending" << endl;
+					MPI_Send(to_buffer, BUFFER_SIZE*DATUM_SIZE + 4, MPI_INT, HEAD_NODE, 0, MPI_COMM_WORLD);
+					cout << "Process " << comm_rank << " sent" << endl;
+
+					//After responding process states
+					index = 0;
+					memcpy(&opt_bound, &from_buffer[index++], sizeof(Cost));
+					int num_sent = from_buffer[index++];
+					total_discovered = from_buffer[index++];
+					total_expanded = from_buffer[index++];
+					assert(from_buffer[index] == 0 || from_buffer[index] == 1);
+					finished = max(finished, from_buffer[index++]);
+					assert(num_sent >= 0 && num_sent < 100000000);
+					while (num_sent > 0) {
+						num_sent--;
+						State s = update_state(from_buffer, index);
+						//updated_states.insert(s);
+					}
+				}
+			}
+
+			//cout << "Process " << comm_rank << " finished comm" << endl;
+			if (finished) {
+				cout << "Machine " << comm_rank << " received a finish variable " << endl;
+				cout << "Time spent comming: " << time_comm << endl;
+				cout << "Time spent setting: " << time_set << endl;
+				cout << "Time spent stating: " << time_state << endl;
+				return;
+			}
+		}
 	  time_comm += chrono::duration<double, chrono::seconds::period>(Clock::now() - before_comm).count();
 
       // get a State to expand
@@ -581,96 +593,9 @@ public:
 		  finished = 1;
 		  cout << "Machine " << comm_rank << " found a solution" << endl;
 		  cout << "Time taken: " << time_elapsed << ". Total expanded: " << total_expanded << " Local expanded: " << num_expanded << endl;
-		  cout << "Time waited gathered: " << time_waiting_gather << endl;
-		  cout << "Time waited bcasted: " << time_waiting_bcast << endl;
 		  cout << "Time commed: " << time_comm << endl;
-		  cout << "Time spent bcasted: " << time_bcast << endl;
-		  cout << "Time spent gathered: " << time_gather << endl;
 		  cout << "Time spent setted: " << time_set << endl;
 		  cout << "Time spent stated: " << time_state << endl;
-
-		  //Now do one final comm to inform the others.
-		  if (comm_rank == HEAD_NODE) {
-			  memset(head_buffer, 0, sizeof(int)*(BUFFER_SIZE*DATUM_SIZE + 4)*comm_size);
-			  //cout << "Process " << comm_rank << " receiving gather" << endl;
-			  //MPI_Gather(MPI_IN_PLACE, 0, MPI_INT, head_buffer, BUFFER_SIZE*DATUM_SIZE+1, MPI_INT, HEAD_NODE, MPI_COMM_WORLD);
-			  MPI_Gather(MPI_IN_PLACE, BUFFER_SIZE*DATUM_SIZE + 4, MPI_INT, head_buffer, BUFFER_SIZE*DATUM_SIZE + 4, MPI_INT, HEAD_NODE, MPI_COMM_WORLD);
-			  //cout << "Process " << comm_rank << " received gather" << endl;
-			  int index = 0;
-			  total_discovered = num_discovered;
-			  total_expanded = num_expanded;
-			  for (int machine = 0; machine < comm_size; machine++) {
-				  int num_sent = head_buffer[machine*(BUFFER_SIZE*DATUM_SIZE + 4)]; //Number of states this child sent in.
-				  total_discovered += head_buffer[machine*(BUFFER_SIZE*DATUM_SIZE + 4) + 1];
-				  total_expanded += head_buffer[machine*(BUFFER_SIZE*DATUM_SIZE + 4) + 2];
-				  assert(head_buffer[machine*(BUFFER_SIZE*DATUM_SIZE + 4) + 3] == 1 || head_buffer[machine*(BUFFER_SIZE*DATUM_SIZE + 4) + 3] == 0);
-				  int in_finished = head_buffer[machine*(BUFFER_SIZE*DATUM_SIZE + 4) + 3];
-				  finished = max(finished, in_finished);
-
-				  index = machine*(BUFFER_SIZE*DATUM_SIZE + 4) + 4;
-				  while (num_sent > 0) {
-					  num_sent--;
-					  State s = update_state(head_buffer, index);
-					  updated_states.insert(s);
-				  }
-			  }
-		  }
-		  else {
-			  memset(child_buffer, 0, sizeof(int)*(BUFFER_SIZE*DATUM_SIZE + 4)*comm_size);
-			  int index = 0;
-			  child_buffer[index++] = updated_states.size();
-			  child_buffer[index++] = num_discovered;
-			  child_buffer[index++] = num_expanded;
-			  child_buffer[index++] = finished;
-			  //cout << "States updated: " << child_buffer[0] << endl;
-			  auto it = updated_states.cbegin();
-			  for (; it != updated_states.cend(); it++) {
-				  const State& s = *it;
-				  StateData& s_data = data[s];
-				  serialize_state(&s, &s_data, child_buffer, index);
-			  }
-			  updated_states.clear();
-			  //cout << "Process " << comm_rank << " sending gather" << endl;
-			  MPI_Gather(child_buffer, BUFFER_SIZE*DATUM_SIZE + 4, MPI_INT, NULL, BUFFER_SIZE*DATUM_SIZE + 4, MPI_INT, HEAD_NODE, MPI_COMM_WORLD);
-			  //cout << "Process " << comm_rank << " sent gather" << endl;
-		  }
-
-		  //Now, Bcast
-		  //cout << "Process " << comm_rank << " Beginning bcast" << endl;
-		  memset(child_buffer, 0, sizeof(int)*(BUFFER_SIZE*DATUM_SIZE + 4)*comm_size);
-		  if (comm_rank == HEAD_NODE) {
-			  int index = 0;
-			  memcpy(&child_buffer[index++], &opt_bound, sizeof(Cost));
-			  child_buffer[index++] = updated_states.size();
-			  child_buffer[index++] = total_discovered;
-			  child_buffer[index++] = total_expanded;
-			  child_buffer[index++] = finished;
-			  auto it = updated_states.cbegin();
-			  for (; it != updated_states.cend(); it++) {
-				  const State& s = *it;
-				  StateData& s_data = data[s];
-				  serialize_state(&s, &s_data, child_buffer, index);
-			  }
-			  updated_states.clear();
-		  }
-		  //cout << "Process " << comm_rank << " Sending bcast" << endl;
-		  MPI_Bcast(child_buffer, (BUFFER_SIZE*DATUM_SIZE + 5)*comm_size, MPI_INT, HEAD_NODE, MPI_COMM_WORLD);
-		  //cout << "Process " << comm_rank << " sent bcast " << endl;
-		  if (comm_rank != HEAD_NODE) {
-			  int index = 0;
-			  memcpy(&opt_bound, &child_buffer[index++], sizeof(Cost));
-			  int num_sent = child_buffer[index++];
-			  total_discovered = child_buffer[index++];
-			  total_expanded = child_buffer[index++];
-			  assert(child_buffer[index] == 0 || child_buffer[index] == 1);
-			  finished = max(finished, child_buffer[index++]);
-			  assert(num_sent >= 0 && num_sent < 100000000);
-			  while (num_sent > 0) {
-				  num_sent--;
-				  State s = update_state(child_buffer, index);
-				  //updated_states.insert(s);
-			  }
-		  }
         break;
       }
       if (it == open.cend()) {
