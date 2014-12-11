@@ -100,7 +100,15 @@ SMHA* specifies two weight parameters. The first weight ($w_1$) gives the search
 
 \section{Results}
 
-Our first set of experiments shows the performance of our algorithm as we increase the number of processes in the distributed setting. We consider the case of multiple processes on a single multi-core machine, as well as multiple machines each running a single process. For comparison, we also include the performance of the single-threaded SMHA* algorithm that our work is based on. For that algorithm, we show performance as the number of heuristics it uses increases. As shown, performance initially increases significantly, but then drops off as the number of processes increases. Moreover, our distributed algorithm performs comparably to SMHA* in the case where the number of heuristi
+Figure \ref{fig1} shows performance as we increase the number of processes (or heuristics, in the case of SMHA*). As shown, performance initially increases significantly, but then drops off as the number of processes increases. When running on a single machine, our distributed algorithm performs comparably to SMHA* for 4 or fewer cores, but decreases in performance as more processes are added.
+
+There are a number of likely explanations for this. First, the initial performance increase is largely a result of adding a heuristic which has more flexibility in returning a less-optimal path. Indeed, figure \ref{fig2} shows that the solution length increases considerably after adding just one non-anchor process. However, it is worth noting that our goal is specifically defined as trying to find a path within a specific multiple of the optimum. Thus, a longer path that remains within these bounds is viewed as an equally valid solution. The additional heuristics also provides more variety in the search, so that it is more likely that at least one of them succeeds in finding a good path. The drop in performance as more processes are added appears to be due to the increased communication cost of using a broadcast communication system. All processes must pause for this, and some might be slow in calling the broadcast command. Moreover, as more processes are added, the anchor receives more states that it must sift through, and the following message that it broadcasts increases in size as well. Thus, it appears that after a sufficiently diverse group of heuristics is added, the added communication cost of additional heuristics outweighs the benefits. These communication costs are analyzed in more detail later in this section and displayed in figure \ref{fig5}.
+
+Figure \ref{fig3} shows performance as we vary the number of iterations between communications. For reference, 100 iterations in our experiments is roughly 1-5 milliseconds. As one would expect, very frequent communication eventually causes the communication overhead to grow too large and hurts performance.  On the other hand, as communication becomes extremely infrequent, the lack of shared information also hurts performance considerably. The optimal choice therefore depends heavily on the nature of the problem; in our case, it appears to be around 6,400 iterations.
+
+As discussed earlier, our algorithm does not appear to outperform SMHA* in the sliding tile puzzle domain. The most likely explanation for this is that because the heuristics we used for the puzzle can be calculated extremely efficiently, there are a huge number of expansions per unit of time. Each expanded state must be communicated to the anchor, which involves a considerable amount of work. It is likely that the amount of work in sending the states to the anchor, having the anchor process these states, broadcasting the best of those states to the other children, and having those children process the states, all together takes about as much work as expanding the state alone. Indeed, figure \ref{fig5} shows that as the number of processes increases, communication quickly becomes a huge fraction of the total time spent. This increased communication cost ultimately outweighs the benefits of additional processes.
+
+Nevertheless, figure \ref{fig4} displays what the results might look like in a problem where the heuristic takes longer to calculate. Specifically, we artificially slow the heuristic calculation by a factor of 10. The result is that fewer states are expanded per second, and thus the cost of communicating a state is much lower relative to the cost of expanding it. In this case, the results show that our distributed algorithm can leverage the benefit of additional cores to outperform SMHA* if we use the one-on-one communication method described earlier in this paper.
 
 
 \begin{figure}
@@ -115,95 +123,30 @@ Our first set of experiments shows the performance of our algorithm as we increa
   \caption{Solution length}
   \label{fig2}
 \end{subfigure}
-\caption{Comparison with Runtime performance and solution quality as the number of different heuristics (cores) on a single machine increases.}
+\caption{Comparison with Runtime performance and solution quality as the number of different heuristics (cores) on a single machine increases. Communication occurs every 5,000 iterations.}
 \label{fig:singthread}
 \end{figure}
 
 \begin{figure}
 \centering
-\begin{subfigure}{3.2in}
-  \includegraphics[width=3.2in]{graphs/figure3}
-  \caption{Running time}
-  \label{fig3}
-\end{subfigure}
-\begin{subfigure}{3.2in}
-  \includegraphics[width=3.2in]{graphs/figure4}
-  \caption{Solution length}
-  \label{fig4}
-\end{subfigure}
-\caption{Runtime performance and solution quality as the number of different heuristics (cores) on a single machine increases.}
-\label{fig:numcores}
+\includegraphics[width=3.2in]{graphs/figure3}
+\caption{Runtime performance as communication frequency is varied. Experiment was done on 2 machines, with 2 processes on each machine.}
+\label{fig3}
 \end{figure}
 
 \begin{figure}
 \centering
-\begin{subfigure}{3.2in}
-  \includegraphics[width=3.2in]{graphs/nummachines_runningtime}
-  \caption{Running time}
-  \label{fig:nummachines_runtime}
-\end{subfigure}
-\begin{subfigure}{3.2in}
-  \includegraphics[width=3.2in]{graphs/nummachines_solutionquality}
-  \caption{Solution length}
-  \label{fig:nummachines_solnqual}
-\end{subfigure}
-\caption{Runtime performance and solution quality as the number of different machines (with one process each) increases from 1 to 16.}
-\label{fig:nummachines}
+\includegraphics[width=3.2in]{graphs/figure5}
+\caption{Cost of communication as the number of processes increases. Each process is on a different machine. Communication occurs every 5,000 iterations. Within MPI refers to only MPI commands. Outside MPI refers to other communication, such as serializing and reading states.}
+\label{fig5}
 \end{figure}
 
 \begin{figure}
 \centering
-\begin{subfigure}{2.0in}
-  \includegraphics[width=2.0in]{graphs/commfreq_runningtime}
-  \caption{Running time}
-  \label{fig:commfreq_runtime}
-\end{subfigure}
-\begin{subfigure}{2.0in}
-  \includegraphics[width=2.0in]{graphs/commfreq_expansions}
-  \caption{Number of state expansions}
-  \label{fig:commfreq_expansions}
-\end{subfigure}
-\begin{subfigure}{2.0in}
-  \includegraphics[width=2.0in]{graphs/commfreq_solutionquality}
-  \caption{Solution length}
-  \label{fig:nummachines_solnqual}
-\end{subfigure}
-\caption{Runtime performance, solution quality, and number of states expanded by the heuristic machines as the number of iterations between communication increases. *At the high end (12800 iterations between sync-ups), one of the four trials timed out (failed to find a solution within 5 minutes). The values in this graph are the average of the remaining three trials.}
-\label{fig:commfreq}
+\includegraphics[width=3.2in]{graphs/figure4}
+\caption{Performance of distribution on heuristics that are 10x slower.}
+\label{fig4}
 \end{figure}
-
-
-
-\begin{figure}
-\centering
-\begin{tabular}{ c | c | c | c }
-    \hline
-    \multicolumn{4}{c}{Single-threaded SMHA* implementation} \\ \hline    
-    \# cores & time & \# expand & soln len \\ \hline
-    1 & 1 & 2 & 3 \\ \hline
-    2 & 4 & 5 & 6 \\ \hline
-    4 & 7 & 8 & 9 \\ \hline
-    % FILL USING AMPERSAND-SEPARATED VALUES WITH "\\ \hline" APPENDED AT THE END
-    
-     \multicolumn{4}{c}{Parallelized SMHA* (single machine, syncing every X iterations)} \\ \hline
-    \# cores & time & \# expand & soln len \\ \hline
-    % FILL USING AMPERSAND-SEPARATED VALUES WITH "\\ \hline" APPENDED AT THE END
-    
-     \multicolumn{4}{c}{Distributed SMHA* (one process per machine, syncing every X iterations)} \\ \hline
-    \# machines & time & \# expand & soln len \\ \hline
-    % FILL USING AMPERSAND-SEPARATED VALUES WITH "\\ \hline" APPENDED AT THE END
-    
-     \multicolumn{4}{c}{Distributed SMHA* with varying frequency of sync-ups} \\ \hline
-     \multicolumn{4}{c}{(4 processes across 2 machines)} \\ \hline
-    \# iterations & time & \# expand & soln len \\ \hline
-    % FILL USING AMPERSAND-SEPARATED VALUES WITH "\\ \hline" APPENDED AT THE END
-
-    \hline
-\end{tabular}
-\caption{Data from our trials}
-\label{fig:datatable}
-\end{figure}
-
 
 
 \section{Conclusions}
