@@ -38,7 +38,7 @@ Our work is directly based on Aine et al.'s original multi-heuristic A* search \
 \section{System Description}
 
 \begin{figure}[h]
-\centering \includegraphics[width=5.0in]{system-diagram}
+\centering \includegraphics[width=5.0in]{graphs/system-diagram}
 \caption{A diagram of our system. One machine starts up the others and runs the monotone anchor search. The other machines run their individual heuristics. Communication is done using MPI. 
 \textcircled{1}\textbf{Anchor:} Starts heuristic machines; performs state expansions using anchor heuristic; receives, resolves, and broadcasts table updates; checks for termination conditions. \textcircled{2}\textbf{Heuristic:} Expands a likely state (chosen using heuristic); updates path cost to its successors; communicates updates to anchor; checks for termination conditions}
 \label{fig:sysdiag}
@@ -51,7 +51,7 @@ An overview of our system is in Figure \ref{fig:sysdiag}. The main (anchor) mach
 \begin{figure}[h]
 \centering
 \begin{subfigure}{3in}
-  \includegraphics[width=3in]{pseudocode}
+  \includegraphics[width=3in]{graphs/pseudocode}
   \caption{Pseudocode}
   \label{fig1}
 \end{subfigure}
@@ -105,7 +105,7 @@ We tested our algorithm on the 24-puzzle, a 5x5 grid of sliding blocks which mus
 
 The anchor heuristic is $h(s) = MD(s) + LC(s)$ where $MD(s)$ is the sum of Manhattan distances of each non-blank tile to its destination, and $LC(s)$ is the linear conflicts heuristic which essentially adds 2 for each pair of horizontally or vertically aligned times which need to pass each other. This heuristic is admissible, in fact it's monotone. Additional heuristics are generated randomly from $MD$, $LC$, and the misplaced tiles heuristic $MT$ which simply counts the number of non-blank tiles which are not already at their destinations. We randomly generate a triple of coefficients, each between 1 and 5, to form a linear combination of these heuristics. We repeat this process as many times as we require non-anchor heuristics. These heuristics are not at all admissible, and their high values give the search a goal-directed focus as the anchor typically underestimates the true distance by a large margin.
 
-SMHA* specifies two weight parameters. The first weight ($w_1$) gives the search a more depth-first goal-directed focus. The second weight ($w_2$) determines the margin by which a proposed solution's cost may exceed the anchor's minimum frontier key value, which is itself $w1$ times a lower bound on the optimum solution cost. Therefore, SMHA* guarantees that the solution found at termination is at most $w_1 w_2$ times the optimum value. This guarantee applies equally well in our distributed variant. For all experiments, we used $w_1 = w_2 = 2$. Every state expanded by the anchor has a $g$ value which is optimal to within a factor of $w_1$.
+SMHA* specifies two weight parameters. The first weight ($w_1$) gives the search a more depth-first goal-directed focus. The second weight ($w_2$) determines the margin by which a proposed solution's cost may exceed the anchor's minimum frontier key value, which is itself $w_1$ times a lower bound on the optimum solution cost. Therefore, SMHA* guarantees that the solution found at termination is at most $w_1 w_2$ times the optimum value. This guarantee applies equally well in our distributed variant. For all experiments, we used $w_1 = w_2 = 2$. Every state expanded by the anchor has a $g$ value which is optimal to within a factor of $w_1$.
 
 \section{Results}
 
